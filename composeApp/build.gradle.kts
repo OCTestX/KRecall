@@ -7,14 +7,16 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    id("org.jetbrains.kotlin.plugin.serialization") version("1.8.10")
+    id("app.cash.sqldelight") version("2.0.2")
 }
 
 kotlin {
     androidTarget {
-        @OptIn(ExperimentalKotlinGradlePluginApi::class)
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_11)
-        }
+//        @OptIn(ExperimentalKotlinGradlePluginApi::class)
+//        compilerOptions {
+//            jvmTarget.set(JvmTarget.JVM_11)
+//        }
     }
     
     jvm("desktop")
@@ -35,10 +37,21 @@ kotlin {
             implementation(compose.components.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodel)
             implementation(libs.androidx.lifecycle.runtime.compose)
+            implementation("io.github.octestx:basic-multiplatform-lib:0.0.5")
+            implementation("io.github.octestx:basic-multiplatform-ui-lib:0.0.2Test5")
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
+
+            // Ktor基础库
+            val ktorVersion = "2.3.11"
+            implementation("io.ktor:ktor-client-core:$ktorVersion")
+            implementation("io.ktor:ktor-client-cio:$ktorVersion")
+            implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
+            implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
         }
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutines.swing)
+            implementation("app.cash.sqldelight:sqlite-driver:2.0.2")
         }
     }
 }
@@ -82,6 +95,13 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "io.github.octestx.krecall"
             packageVersion = "1.0.0"
+        }
+    }
+}
+sqldelight {
+    databases {
+        create("DataDB") {
+            packageName.set("models.sqld")
         }
     }
 }

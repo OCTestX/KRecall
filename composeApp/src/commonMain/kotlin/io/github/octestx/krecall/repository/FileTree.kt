@@ -1,0 +1,35 @@
+package io.github.octestx.krecall.repository
+
+import io.github.kotlin.fibonacci.appDirs
+import io.github.kotlin.fibonacci.utils.*
+import io.klogging.noCoLogger
+import kotlinx.io.files.Path
+
+object FileTree {
+    private val ologger = noCoLogger<FileTree>()
+    private lateinit var plugins: Path
+//    lateinit var pluginsJars: Path private set
+    private lateinit var pluginsData: Path
+
+    private lateinit var screenDir: Path
+
+    private lateinit var dataDBFile: Path
+
+    private lateinit var configFile: Path
+    fun init() {
+        plugins = appDirs.getUserDataDir().asFilePath().linkDir("Plugins")
+        ologger.info { "PluginDir: $plugins" }
+//        pluginsJars = plugins.linkDir("jars")
+        pluginsData = plugins.linkDir("data")
+
+        screenDir = appDirs.getUserDataDir().asFilePath().linkDir("Screen")
+        
+        dataDBFile = appDirs.getUserDataDir().asFilePath().link("data.db")
+        DataDB.init(dataDBFile)
+
+        configFile = appDirs.getUserDataDir().asFilePath().link("config.json")
+        ConfigManager.reload(configFile)
+    }
+    fun pluginData(pluginId: String) = pluginsData.linkDir(pluginId)
+    fun pluginScreenDir(pluginId: String) = screenDir.linkDir(pluginId)
+}
