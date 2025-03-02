@@ -7,7 +7,7 @@ import io.github.octestx.krecall.plugins.basic.AbsScreenLanguageConverterPlugin
 import io.github.octestx.krecall.plugins.basic.AbsStoragePlugin
 import io.github.octestx.krecall.plugins.impl.getscreen.GetScreenByKDESpectaclePlugin
 import io.github.octestx.krecall.plugins.impl.naturallanguage.NaturalLanguageConverterByKimiPlugin
-import io.github.octestx.krecall.plugins.impl.screenlanguage.ScreenLanguageConverterByKimiPlugin
+import io.github.octestx.krecall.plugins.impl.screenlanguage.ScreenLanguageConverterByZhiPuPlugin
 import io.github.octestx.krecall.plugins.impl.storage.OTStoragePlugin
 
 object PluginSelector {
@@ -34,7 +34,7 @@ object PluginSelector {
     val plugins = mapOf(
         "GetScreenByKDESpectaclePlugin" to GetScreenByKDESpectaclePlugin(),
         "NaturalLanguageConverterByKimiPlugin" to NaturalLanguageConverterByKimiPlugin(),
-        "ScreenLanguageConverterByKimiPlugin" to ScreenLanguageConverterByKimiPlugin(),
+        "ScreenLanguageConverterByKimiPlugin" to ScreenLanguageConverterByZhiPuPlugin(),
         "OTStoragePlugin" to OTStoragePlugin()
     )
     fun getScreenPlugin(id: String): Result<AbsGetScreenPlugin> = kotlin.runCatching {

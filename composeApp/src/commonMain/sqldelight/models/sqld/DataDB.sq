@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS Data (
+CREATE TABLE IF NOT EXISTS DataItem (
     timestamp INTEGER NOT NULL PRIMARY KEY,
     data TEXT DEFAULT NULL,
     processed INTEGER NOT NULL DEFAULT 0,
@@ -6,34 +6,37 @@ CREATE TABLE IF NOT EXISTS Data (
 );
 
 listAllData:
-SELECT * FROM Data;
+SELECT * FROM DataItem;
 
-listDataWithTTimestampRange:
-SELECT * FROM Data WHERE timestamp BETWEEN ? AND ?;
+listDataWithTimestampRange:
+SELECT * FROM DataItem WHERE timestamp BETWEEN ? AND ?;
 
 getData:
-SELECT * FROM Data WHERE timestamp=?;
+SELECT * FROM DataItem WHERE timestamp=?;
+
+listNotProcessedData:
+SELECT * FROM DataItem WHERE processed=0;
 
 searchDataInAll:
-SELECT * FROM Data WHERE (data LIKE ?);
+SELECT * FROM DataItem WHERE (data LIKE ?);
 
 searchDataWithTimeRange:
-SELECT * FROM Data WHERE ((timestamp BETWEEN ? AND ?) AND (data LIKE ?));
+SELECT * FROM DataItem WHERE ((timestamp BETWEEN ? AND ?) AND (data LIKE ?));
 
 addNewRecord:
-INSERT INTO Data (timestamp) VALUES (?);
+INSERT INTO DataItem (timestamp) VALUES (?);
 
 appendData:
-UPDATE Data SET data = ? WHERE timestamp = ?;
+UPDATE DataItem SET data = ? WHERE timestamp = ?;
 
 processed:
-UPDATE Data SET processed = 1 WHERE timestamp = ?;
+UPDATE DataItem SET processed = 1 WHERE timestamp = ?;
 
 markScreenData:
-UPDATE Data SET mark = ? WHERE timestamp = ?;
+UPDATE DataItem SET mark = ? WHERE timestamp = ?;
 
 listTimestampWithMark:
-SELECT timestamp FROM Data WHERE mark = ?;
+SELECT timestamp FROM DataItem WHERE mark = ?;
 
 listTimestampWithNotMark:
-SELECT timestamp FROM Data WHERE mark != ?;
+SELECT timestamp FROM DataItem WHERE mark != ?;

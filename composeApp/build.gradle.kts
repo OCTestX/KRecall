@@ -42,11 +42,16 @@ kotlin {
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
 
             // Ktor基础库
-            val ktorVersion = "2.3.11"
+            val ktorVersion = "3.1.0"
             implementation("io.ktor:ktor-client-core:$ktorVersion")
             implementation("io.ktor:ktor-client-cio:$ktorVersion")
             implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
             implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
+
+            implementation("com.aallam.openai:openai-client:4.0.0")
+            implementation("cn.bigmodel.openapi:oapi-java-sdk:release-V4-2.3.0")
+
+            implementation("org.apache.commons:commons-math3:3.6.1")
         }
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)
@@ -100,8 +105,13 @@ compose.desktop {
 }
 sqldelight {
     databases {
-        create("DataDB") {
+        create("DB") {
             packageName.set("models.sqld")
+            // 添加迁移配置
+            migrationOutputDirectory.set(file("src/main/sqldelight/migrations"))
+            schemaOutputDirectory.set(file("src/main/sqldelight/schemas"))
+            // 启用迁移验证
+            verifyMigrations.set(true)
         }
     }
 }

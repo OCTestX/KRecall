@@ -4,18 +4,21 @@ import io.github.kotlin.fibonacci.BasicMultiplatformConfigModule
 import io.github.kotlin.fibonacci.JVMInitCenter
 import io.github.kotlin.fibonacci.JVMUIInitCenter
 import io.github.octestx.krecall.plugins.PluginManager
-import io.github.octestx.krecall.plugins.PluginManager.pluginModule
 import io.github.octestx.krecall.plugins.basic.IPluginContext
 import io.github.octestx.krecall.plugins.impl.PluginContextImpl
 import io.github.octestx.krecall.repository.FileTree
 import io.klogging.noCoLogger
-import org.koin.core.context.loadKoinModules
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
 import java.io.File
 
 object Core {
     private val ologger = noCoLogger<Core>()
+    private val ioscope = CoroutineScope(Dispatchers.IO)
     @Volatile
     private var initialized = false
     fun init() {
@@ -37,7 +40,7 @@ object Core {
         JVMUIInitCenter.init()
 
         FileTree.init()
-        PluginManager.init()
+        runBlocking { PluginManager.init() }
         initialized = true
         ologger.info { "INITIALIZED" }
     }

@@ -8,14 +8,14 @@ import kotlinx.io.files.Path
 object FileTree {
     private val ologger = noCoLogger<FileTree>()
     private lateinit var plugins: Path
-//    lateinit var pluginsJars: Path private set
+
     private lateinit var pluginsData: Path
 
     private lateinit var screenDir: Path
 
     private lateinit var dataDBFile: Path
 
-    private lateinit var configFile: Path
+    lateinit var configDir: Path private set
     fun init() {
         plugins = appDirs.getUserDataDir().asFilePath().linkDir("Plugins")
         ologger.info { "PluginDir: $plugins" }
@@ -27,8 +27,8 @@ object FileTree {
         dataDBFile = appDirs.getUserDataDir().asFilePath().link("data.db")
         DataDB.init(dataDBFile)
 
-        configFile = appDirs.getUserDataDir().asFilePath().link("config.json")
-        ConfigManager.reload(configFile)
+        configDir = appDirs.getUserDataDir().asFilePath().linkDir("Configs")
+        ConfigManager.reload()
     }
     fun pluginData(pluginId: String) = pluginsData.linkDir(pluginId)
     fun pluginScreenDir(pluginId: String) = screenDir.linkDir(pluginId)

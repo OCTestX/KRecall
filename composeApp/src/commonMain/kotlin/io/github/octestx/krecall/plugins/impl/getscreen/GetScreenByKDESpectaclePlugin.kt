@@ -1,15 +1,24 @@
 package io.github.octestx.krecall.plugins.impl.getscreen
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.*
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.res.loadImageBitmap
 import io.github.octestx.krecall.plugins.basic.AbsGetScreenPlugin
 import io.klogging.noCoLogger
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.decodeToImageBitmap
 import java.io.File
+import java.io.FileNotFoundException
 import java.io.OutputStream
 
 class GetScreenByKDESpectaclePlugin: AbsGetScreenPlugin(pluginId = "GetScreenByKDESpectaclePlugin") {
@@ -22,52 +31,56 @@ class GetScreenByKDESpectaclePlugin: AbsGetScreenPlugin(pluginId = "GetScreenByK
 
     override suspend fun getScreen(outputFileBitItNotExits: File) {
         withContext(Dispatchers.IO) {
-            ologger.info { "getScreen" }
+            ologger.info { "getScreen: $outputFileBitItNotExits" }
             val processBuilder = ProcessBuilder("/usr/bin/spectacle", "-f", "-b", "-n", "-o", outputFileBitItNotExits.absolutePath)
             processBuilder.redirectErrorStream(false)
-            ologger.error { processBuilder.toString() }
             val process = processBuilder.start()
             val exitCode = process.waitFor()
             if (exitCode != 0) {
                 val err = RuntimeException("Command[${processBuilder.command()}] failed with exit code $exitCode")
-                ologger.error(err) { err.message }
+                ologger.error(err) { "Exception: "+err.message }
                 throw err
             }
         }
     }
 
-    override fun loadInner() {
+    override fun load() {
         ologger.info { "Loaded" }
     }
 
+    override fun unload() {}
+
+    @OptIn(ExperimentalResourceApi::class)
     @Composable
     override fun UI() {
-        Text("GetScreenByKDESpectaclePluginUI")
         val scope = rememberCoroutineScope()
-        Button(onClick = {
-            scope.launch {
-                val f = File("f.png")
-                getScreen(f)
-                ologger.info("Test: ${f.absolutePath}")
+        var painter: Painter? by remember { mutableStateOf(null) }
+        Column {
+            Button(onClick = {
+                scope.launch {
+                    val f = File(pluginDir, "test.png")
+                    getScreen(f)
+                    if (!f.exists()) {
+                        throw FileNotFoundException("testFile not found")
+                    }
+                    val img = f.inputStream().readAllBytes().decodeToImageBitmap()
+                    painter = BitmapPainter(img)
+                    ologger.info("Test: ${f.absolutePath}")
+                }
+            }) {
+                Text("Test")
             }
-        }) {
-            Text("Test")
+            painter?.let { Image(it, contentDescription = null) }
         }
     }
+
 
     override fun tryInitInner(): Exception? {
         ologger.info { "TryInit" }
-        val processBuilder = ProcessBuilder("/usr/bin/spectacle")
-        processBuilder.redirectErrorStream(false)
-
-        val process = processBuilder.start()
-        val exitCode = process.waitFor()
-        if (exitCode != 0) {
-            return RuntimeException("Command failed with exit code $exitCode")
-        }
-        initialized = true
+        _initialized.value = true
         return null
     }
 
-    override var initialized: Boolean = false
+    private val _initialized = MutableStateFlow(false)
+    override val initialized: StateFlow<Boolean> = _initialized
 }
