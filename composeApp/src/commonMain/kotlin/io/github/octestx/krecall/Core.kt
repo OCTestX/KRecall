@@ -41,6 +41,7 @@ object Core {
 
         FileTree.init()
         runBlocking { PluginManager.init() }
+
         initialized = true
         ologger.info { "INITIALIZED" }
     }

@@ -75,20 +75,20 @@ class OTStoragePlugin: AbsStoragePlugin(pluginId = "OTStoragePlugin") {
                 ologger.info { "已清理$countSpace Bytes空间" }
             }
         }
-        val previousFileTimestamp = OTStorageDB.getPreviousData(timestamp)?.fileTimestamp
-        if (previousFileTimestamp != null) {
-            val currentImg = getScreenDataByFileTimestamp(timestamp).getOrNull()
-            val previousImg = getScreenDataByFileTimestamp(previousFileTimestamp).getOrNull()
-            if (currentImg != null && previousImg != null) {
-                // TODO 完全不可用
-                val factor = ImageUtils.calculateImageSimilarity(currentImg, previousImg)
-                if (factor > 0.9) {
-                    OTStorageDB.setFileTimestamp(timestamp, previousFileTimestamp)
-                    getFile(timestamp).delete()
-                    ologger.info { "相似度大于0.9，不保存[$timestamp -> $previousFileTimestamp]" }
-                }
-            }
-        }
+//        val previousFileTimestamp = OTStorageDB.getPreviousData(timestamp)?.fileTimestamp
+//        if (previousFileTimestamp != null) {
+//            val currentImg = getScreenDataByFileTimestamp(timestamp).getOrNull()
+//            val previousImg = getScreenDataByFileTimestamp(previousFileTimestamp).getOrNull()
+//            if (currentImg != null && previousImg != null) {
+//                // TODO 完全不可用
+//                val factor = ImageUtils.calculateImageSimilarity(currentImg, previousImg)
+//                if (factor > 0.9) {
+//                    OTStorageDB.setFileTimestamp(timestamp, previousFileTimestamp)
+//                    getFile(timestamp).delete()
+//                    ologger.info { "相似度大于0.9，不保存[$timestamp -> $previousFileTimestamp]" }
+//                }
+//            }
+//        }
         //TODO 图片优化存储
     }
 

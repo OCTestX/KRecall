@@ -2,22 +2,25 @@ package io.github.octestx.krecall.ui
 
 import TimestampRateController
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
 import io.github.octestx.krecall.GlobalRecalling
 import io.github.octestx.krecall.plugins.PluginManager
 import io.github.octestx.krecall.repository.DataDB
 import io.klogging.noCoLogger
+import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.decodeToImageBitmap
 import ui.core.AbsUIPage
-import java.io.ByteArrayInputStream
 
-class HomePage(model: PluginConfigModel): AbsUIPage<Any?, HomePage.HomePageState, HomePage.HomePageAction>(model) {
+class HomePage(model: HomePageModel): AbsUIPage<Any?, HomePage.HomePageState, HomePage.HomePageAction>(model) {
     private val ologger = noCoLogger<HomePage>()
     @OptIn(ExperimentalResourceApi::class)
     @Composable
@@ -33,61 +36,124 @@ class HomePage(model: PluginConfigModel): AbsUIPage<Any?, HomePage.HomePageState
                 Text("ProcessingData")
                 Switch(processingData, { state.action(HomePageAction.ChangeProcessingData(!processingData)) })
             }
+            Row {
+                Text("theNowMode")
+                Switch(state.theNowMode, { state.action(HomePageAction.ChangeTheNowMode(!state.theNowMode)) })
+            }
             Text("ProcessingData: ${GlobalRecalling.processingDataList.count.collectAsState().value}")
-            Column {
-                var selectedTimestamp = remember { mutableStateOf(GlobalRecalling.allTimestamp.last()) }
-                var theNowMode by remember { mutableStateOf(true) }
-                // 添加时间戳控制器
-                TimestampRateController(
-                    timestamps = GlobalRecalling.allTimestamp,
-                    currentTimestamp = selectedTimestamp
-                )
-                var currentImagePainter: Painter? by remember { mutableStateOf(null) }
-                var currentData: String by remember { mutableStateOf("") }
-                LaunchedEffect(selectedTimestamp.value) {
-                    PluginManager.getStoragePlugin().onSuccess { storagePlugin ->
-                        currentData = DataDB.getData(selectedTimestamp.value)?.data_?:""
-                        storagePlugin.getScreenData(selectedTimestamp.value).onSuccess {
-                            val img = ByteArrayInputStream(it).readAllBytes().decodeToImageBitmap()
-                            currentImagePainter = BitmapPainter(img)
-                        }
+            Column(modifier = Modifier.verticalScroll(state.scrollState)) {
+                if (state.selectedTimestampIndex >= 0) {
+                    // 添加时间戳控制器
+                    TimestampRateController(
+                        timestamps = GlobalRecalling.allTimestamp,
+                        currentIndex = state.selectedTimestampIndex,
+                        theNowMode = state.theNowMode
+                    ) {
+                        state.action(HomePageAction.ChangeSelectedTimestampIndex(it))
                     }
                 }
-                Text("Data: $currentData", maxLines = 3)
-                currentImagePainter?.apply {
+                state.currentImagePainter?.apply {
                     Image(
                         painter = this,
                         contentDescription = "Screen"
                     )
                 }
+                Text("Data: ${state.currentData}")
             }
         }
     }
     sealed class HomePageAction : AbsUIAction() {
         data class ChangeCollectingScreen(val collectingScreen: Boolean): HomePageAction()
         data class ChangeProcessingData(val processingData: Boolean): HomePageAction()
+        data class ChangeTheNowMode(val theNowMode: Boolean): HomePageAction()
+        data class ChangeSelectedTimestampIndex(val selectedTimestampIndex: Int): HomePageAction()
     }
     data class HomePageState(
+        val theNowMode: Boolean,
+        val scrollState: ScrollState,
+        val selectedTimestampIndex: Int,
+        val currentImagePainter: Painter?,
+        val currentData: String,
         val action: (HomePageAction) -> Unit
     ): AbsUIState<HomePageAction>()
 
-    class PluginConfigModel: AbsUIModel<Any?, HomePageState, HomePageAction>() {
-        val ologger = noCoLogger<PluginConfigModel>()
+    class HomePageModel: AbsUIModel<Any?, HomePageState, HomePageAction>() {
+        val ologger = noCoLogger<HomePageModel>()
+
+        private var _theNowMode by mutableStateOf(false)
+        private val _scrollState = ScrollState(0)
+        private var _selectedTimestampIndex by mutableStateOf(GlobalRecalling.allTimestamp.lastIndex)
+        private var _currentImagePainter: Painter? by mutableStateOf(null)
+        private var _currentData by mutableStateOf("")
 
         init {
             GlobalRecalling.init()
         }
 
+        @OptIn(ExperimentalResourceApi::class)
         @Composable
         override fun CreateState(params: Any?): HomePageState {
-            return HomePageState() {
+            TraceRealtime()
+            return HomePageState(_theNowMode, _scrollState, _selectedTimestampIndex, _currentImagePainter, _currentData) {
                 actionExecute(params, it)
             }
+        }
+        @OptIn(ExperimentalResourceApi::class)
+        @Composable
+        private fun TraceRealtime() {
+            LaunchedEffect(_selectedTimestampIndex) {
+                while (_selectedTimestampIndex < 0) {
+                    _selectedTimestampIndex = GlobalRecalling.allTimestamp.lastIndex
+                    delay(350)
+                }
+                //Realtime update current data
+                while (_currentData.isEmpty()) {
+                    PluginManager.getStoragePlugin().onSuccess { storagePlugin ->
+                        _currentData = DataDB.getData(GlobalRecalling.allTimestamp[_selectedTimestampIndex])?.data_ ?: ""
+                        storagePlugin.getScreenData(GlobalRecalling.allTimestamp[_selectedTimestampIndex])
+                            .onSuccess {
+                                val img = it.decodeToImageBitmap()
+                                _currentImagePainter = BitmapPainter(img)
+                            }
+                    }
+                    delay(1000)
+                }
+            }
+
+
+//            if (_selectedTimestampIndex >= 0) {
+//                //Realtime update current data
+//                LaunchedEffect(_selectedTimestampIndex) {
+//                    while (_currentData.isEmpty()) {
+//                        PluginManager.getStoragePlugin().onSuccess { storagePlugin ->
+//                            _currentData = DataDB.getData(GlobalRecalling.allTimestamp[_selectedTimestampIndex])?.data_ ?: ""
+//                            storagePlugin.getScreenData(GlobalRecalling.allTimestamp[_selectedTimestampIndex])
+//                                .onSuccess {
+//                                    val img = it.decodeToImageBitmap()
+//                                    _currentImagePainter = BitmapPainter(img)
+//                                }
+//                        }
+//                        delay(1000)
+//                    }
+//                }
+//            } else {
+//                _selectedTimestampIndex = GlobalRecalling.allTimestamp.lastIndex
+//                if (_selectedTimestampIndex >= 0) {
+//                    TraceRealtime()
+//                }
+//            }
         }
         override fun actionExecute(params: Any?, action: HomePageAction) {
             when(action) {
                 is HomePageAction.ChangeCollectingScreen -> GlobalRecalling.collectingScreen.value = action.collectingScreen
                 is HomePageAction.ChangeProcessingData -> GlobalRecalling.processingData.value = action.processingData
+                is HomePageAction.ChangeTheNowMode -> _theNowMode = action.theNowMode
+                is HomePageAction.ChangeSelectedTimestampIndex -> {
+                    if (_selectedTimestampIndex != action.selectedTimestampIndex) {
+                        _selectedTimestampIndex = action.selectedTimestampIndex
+                        _currentData = ""
+                    }
+                }
             }
         }
     }

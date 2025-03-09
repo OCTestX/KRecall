@@ -52,6 +52,9 @@ kotlin {
             implementation("cn.bigmodel.openapi:oapi-java-sdk:release-V4-2.3.0")
 
             implementation("org.apache.commons:commons-math3:3.6.1")
+
+            implementation("io.coil-kt.coil3:coil-compose:3.1.0")
+            implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.1")
         }
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)
@@ -89,6 +92,7 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidx.ui.text.android)
     debugImplementation(compose.uiTooling)
 }
 

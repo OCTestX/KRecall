@@ -15,7 +15,9 @@ abstract class AbsStoragePlugin(pluginId: String): PluginBasic(pluginId) {
      * @exception NoSuchFileException
      */
     abstract suspend fun getScreenData(timestamp: Long): Result<ByteArray>
-    protected val imageDir: File = get<IPluginContext>(IPluginContext::class.java).getPluginDir(pluginId)
+    protected val imageDir: File = File(get<IPluginContext>(IPluginContext::class.java).getPluginDir(pluginId), "ScreenImages").apply {
+        if (!exists()) mkdirs()
+    }
     protected fun mark(timestamp: Long, mark: String) = get<IPluginContext>(IPluginContext::class.java).markScreenData(timestamp, mark)
     protected fun listTimestampWithMark(mark: String): List<Long> = get<IPluginContext>(IPluginContext::class.java).listTimestampWithMark(mark)
     protected fun listTimestampWithNotMark(mark: String): List<Long> = get<IPluginContext>(IPluginContext::class.java).listTimestampWithNotMark(mark)

@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
+import io.github.octestx.krecall.utils.TimeUtils
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 
@@ -19,11 +20,12 @@ import kotlin.math.abs
 @Composable
 fun TimestampRateController(
     timestamps: List<Long>,
-    currentTimestamp: MutableState<Long>,
-    modifier: Modifier = Modifier
+    currentIndex: Int,
+    theNowMode: Boolean,
+    modifier: Modifier = Modifier,
+    changeIndex: (Int) -> Unit
 ) {
     var sliderPosition by remember { mutableFloatStateOf(0.5f) }
-    var currentIndex by remember { mutableIntStateOf(timestamps.lastIndex) }
     var isDragging by remember { mutableStateOf(false) }
     val maxMultiplier = 15f
 
@@ -31,7 +33,14 @@ fun TimestampRateController(
     val speedMultiplier = remember(sliderPosition) {
         (sliderPosition - 0.5f) * 2 * maxMultiplier
     }
-
+    LaunchedEffect(theNowMode) {
+        while (true) {
+            if (theNowMode) {
+                changeIndex(timestamps.lastIndex)
+            }
+            delay(350)
+        }
+    }
     // 自动滚动协程
     LaunchedEffect(isDragging, speedMultiplier) {
         if (isDragging && timestamps.isNotEmpty()) {
@@ -45,8 +54,7 @@ fun TimestampRateController(
                     val newIndex = (currentIndex + direction).coerceIn(0, timestamps.lastIndex)
 
                     if (newIndex != currentIndex) {
-                        currentIndex = newIndex
-                        currentTimestamp.value = timestamps[newIndex]
+                        changeIndex(newIndex)
                     }
 
                     lastUpdateTime = currentTime
@@ -128,8 +136,24 @@ fun TimestampRateController(
         )
 
         // 时间戳显示
+        val lastIndex = timestamps.lastIndex
+        val current = buildString {
+            append("Current: ")
+            append(timestamps[currentIndex])
+            append("[${currentIndex}]")
+        }
+        val next = buildString {
+            append("Next: ")
+            val time = timestamps.getOrNull(currentIndex + 1)
+            if (time != null) {
+                append(time)
+                append("[${lastIndex - currentIndex}]")
+            } else {
+                append("NULL")
+            }
+        }
         Text(
-            text = "Selected: ${currentTimestamp.value}",
+            text = "${TimeUtils.formatTimestampToChinese(timestamps[currentIndex])} SelectedTimestamp: $current $next",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

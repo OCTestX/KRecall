@@ -26,7 +26,10 @@ object GlobalRecalling {
     //Timestamp
     val processingDataList = ObservableLinkedList<Long>()
 
+    private var initialized = false
     fun init() {
+        if (initialized) return
+        initialized = true
         allTimestamp.addAll(DataDB.listAllData().map { it.timestamp })
         val collectingScreenJob = ioscope.launch {
             while (true) {

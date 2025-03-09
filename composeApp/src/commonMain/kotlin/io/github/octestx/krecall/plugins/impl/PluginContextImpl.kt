@@ -1,5 +1,7 @@
 package io.github.octestx.krecall.plugins.impl
 
+import com.aallam.openai.api.chat.*
+import com.aallam.openai.api.model.ModelId
 import io.github.octestx.krecall.plugins.basic.IPluginContext
 import io.github.octestx.krecall.repository.DataDB
 import io.github.octestx.krecall.repository.FileTree
