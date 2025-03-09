@@ -3,15 +3,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
+import compose.icons.TablerIcons
+import compose.icons.tablericons.ArrowLeft
+import compose.icons.tablericons.ArrowRight
 import io.github.octestx.krecall.utils.TimeUtils
 import kotlinx.coroutines.delay
 import kotlin.math.abs
@@ -65,12 +65,32 @@ fun TimestampRateController(
     }
 
     Column(modifier.padding(16.dp)) {
-        // 倍率指示器
-        Text(
-            text = "×${abs(speedMultiplier).format(1)} ${if(speedMultiplier>0)"▶" else "◀"}",
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-        )
+        Row {
+            // 倍率指示器
+            Text(
+                text = "×${abs(speedMultiplier).format(1)} ${if(speedMultiplier>0)"▶" else "◀"}",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+            )
+            IconButton(onClick = {
+                changeIndex(currentIndex - 1)
+            }) {
+                Icon(
+                    imageVector = TablerIcons.ArrowLeft,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+            IconButton(onClick = {
+                changeIndex(currentIndex + 1)
+            }) {
+                Icon(
+                    imageVector = TablerIcons.ArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
 
         // 滑动控制器
         Slider(

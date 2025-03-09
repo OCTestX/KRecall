@@ -1,43 +1,34 @@
 package io.github.octestx.krecall.ui
 
-import androidx.compose.foundation.*
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.BitmapPainter
-import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import compose.icons.TablerIcons
 import compose.icons.tablericons.ArrowBack
 import io.github.octestx.krecall.GlobalRecalling
+import io.github.octestx.krecall.model.ImageState
 import io.github.octestx.krecall.plugins.PluginManager
-import io.github.octestx.krecall.repository.DataDB
 import io.klogging.noCoLogger
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import models.sqld.DataItem
-import org.jetbrains.compose.resources.ExperimentalResourceApi
-import org.jetbrains.compose.resources.decodeToImageBitmap
 import ui.core.AbsUIPage
 
 class TimestampViewPage(private val model: TimestampViewPageModel): AbsUIPage<Any?, TimestampViewPage.TimestampViewPageState, TimestampViewPage.TimestampViewPageAction>(model) {
     private val ologger = noCoLogger<TimestampViewPage>()
-    @OptIn(ExperimentalResourceApi::class, ExperimentalMaterial3Api::class)
+    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun UI(state: TimestampViewPageState) {
         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
@@ -50,21 +41,15 @@ class TimestampViewPage(private val model: TimestampViewPageModel): AbsUIPage<An
                     Icon(TablerIcons.ArrowBack, null)
                 }
             })
-            var painter: Painter? by remember { mutableStateOf(null) }
-            val loadingFailPainter = rememberVectorPainter(Icons.Default.Close)
-            painter?.let {
-                Image(
-                    painter = it,
-                    contentDescription = "Screen"
-                )
-            }
-            LaunchedEffect(state.dataItem.timestamp) {
-                painter = withContext(Dispatchers.IO) {
-                    PluginManager.getStoragePlugin().getOrNull()?.getScreenData(state.dataItem.timestamp)?.let {
-                        it.getOrNull()?.decodeToImageBitmap()?.let { img ->
-                            BitmapPainter(img)
-                        }
-                    }?: loadingFailPainter
+            when (state.imageState) {
+                ImageState.Error -> {
+                    Text("ERROR!")
+                }
+                ImageState.Loading -> {
+                    CircularProgressIndicator()
+                }
+                is ImageState.Success -> {
+                    AsyncImage(state.imageState.bytes, null, contentScale = ContentScale.Crop)
                 }
             }
             BasicText(
@@ -113,15 +98,42 @@ class TimestampViewPage(private val model: TimestampViewPageModel): AbsUIPage<An
     }
     data class TimestampViewPageState(
         val dataItem: DataItem,
+        val imageState: ImageState,
         val action: (TimestampViewPageAction) -> Unit
     ): AbsUIState<TimestampViewPageAction>()
 
     class TimestampViewPageModel(private val dataItem: DataItem, val highlightSearchStr: String? = null, private val goBack: () -> Unit): AbsUIModel<Any?, TimestampViewPageState, TimestampViewPageAction>() {
         val ologger = noCoLogger<TimestampViewPageModel>()
 
+        private var imgState: ImageState by  mutableStateOf(ImageState.Loading)
+
         @Composable
         override fun CreateState(params: Any?): TimestampViewPageState {
-            return TimestampViewPageState(dataItem) {
+            // ✅ 优化后的加载逻辑
+            LaunchedEffect(Unit) {
+                if (GlobalRecalling.imageCache.containsKey(dataItem.timestamp)) {
+                    imgState = ImageState.Success(GlobalRecalling.imageCache[dataItem.timestamp]!!)
+                    return@LaunchedEffect
+                }
+
+                imgState = try {
+                    withContext(GlobalRecalling.imageLoadingDispatcher) {
+                        val bytes = GlobalRecalling.imageCache.getOrPut(dataItem.timestamp) {
+                            PluginManager.getStoragePlugin().getOrNull()
+                                ?.getScreenData(dataItem.timestamp)
+                                ?.getOrNull()
+                        }
+                        if (bytes == null) {
+                            ImageState.Error
+                        } else {
+                            ImageState.Success(bytes)
+                        }
+                    }
+                } catch (e: Exception) {
+                    ImageState.Error
+                }
+            }
+            return TimestampViewPageState(dataItem, imgState) {
                 actionExecute(params, it)
             }
         }

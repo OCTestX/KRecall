@@ -6,14 +6,13 @@ import io.github.octestx.krecall.repository.ConfigManager
 import io.github.octestx.krecall.repository.DataDB
 import io.github.octestx.krecall.repository.TimeStamp
 import io.github.octestx.krecall.utils.ObservableLinkedList
+import io.github.octestx.krecall.utils.synchronized
 import io.klogging.noCoLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
-import models.sqld.DataItem
-import java.util.LinkedList
 
 object GlobalRecalling {
     private val ologger = noCoLogger<GlobalRecalling>()
@@ -25,6 +24,14 @@ object GlobalRecalling {
 
     //Timestamp
     val processingDataList = ObservableLinkedList<Long>()
+
+    val imageLoadingDispatcher = Dispatchers.IO.limitedParallelism(4)
+    private const val MaxCacheSize = 100
+    val imageCache = object : LinkedHashMap<Long, ByteArray?>(MaxCacheSize, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, ByteArray?>): Boolean {
+            return size > MaxCacheSize
+        }
+    }.synchronized() // 添加线程安全包装
 
     private var initialized = false
     fun init() {
