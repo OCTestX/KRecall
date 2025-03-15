@@ -29,7 +29,8 @@ class HomePage(model: HomePageModel): AbsUIPage<Any?, HomePage.HomePageState, Ho
     override fun UI(state: HomePageState) {
         Column {
             val collectingScreenDelay by GlobalRecalling.collectingDelay.collectAsState()
-            Row(Modifier.borderProgress((collectingScreenDelay.toDouble() / ConfigManager.config.collectScreenDelay).toFloat())) {
+            LinearProgressIndicator( progress = { (collectingScreenDelay.toDouble() / ConfigManager.config.collectScreenDelay).toFloat() })
+            Row() {
                 val collectingScreen by GlobalRecalling.collectingScreen.collectAsState()
                 Text("CollectingScreen[${"%.1f".format(collectingScreenDelay.toDouble() / 1000)}s]")
                 Switch(collectingScreen, { state.action(HomePageAction.ChangeCollectingScreen(!collectingScreen)) })

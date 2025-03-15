@@ -11,13 +11,16 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 
 fun Modifier.borderProgress(
     progress: Float,
     startColor: Color = Color.Blue,
-    endColor: Color = Color.Magenta
+    endColor: Color = Color.Magenta,
+    spacing: Dp = 4.dp  // 新增间距参数
 ): Modifier = composed {
     val strokeWidth = with(LocalDensity.current) { 4.dp.toPx() }
+    val spacingPx = with(LocalDensity.current) { spacing.toPx() } // 转换为像素
     val halfStroke = strokeWidth / 2
 
     this.drawWithContent {
@@ -26,7 +29,7 @@ fun Modifier.borderProgress(
         val currentLength = totalLength * progress.coerceIn(0f..1f)
         var remaining = currentLength
 
-        // 上边右半部分（从左到右）
+        // 上边右半部分（添加垂直间距）
         if (remaining > 0) {
             val topRightAvailable = size.width / 2 - halfStroke
             val drawLength = minOf(remaining, topRightAvailable)
@@ -36,15 +39,15 @@ fun Modifier.borderProgress(
                     start = Offset(size.width / 2, halfStroke),
                     end = Offset(size.width / 2 + drawLength, halfStroke)
                 ),
-                start = Offset(size.width / 2, halfStroke),
-                end = Offset(size.width / 2 + drawLength, halfStroke),
+                start = Offset(size.width / 2, halfStroke - spacingPx), // 上移
+                end = Offset(size.width / 2 + drawLength, halfStroke - spacingPx),
                 strokeWidth = strokeWidth,
                 cap = StrokeCap.Round
             )
             remaining -= drawLength
         }
 
-        // 右边（从上到下）
+        // 右边（添加水平间距）
         if (remaining > 0) {
             val rightAvailable = size.height - strokeWidth
             val drawHeight = minOf(remaining, rightAvailable)
@@ -54,15 +57,15 @@ fun Modifier.borderProgress(
                     start = Offset(size.width - halfStroke, halfStroke),
                     end = Offset(size.width - halfStroke, halfStroke + drawHeight)
                 ),
-                start = Offset(size.width - halfStroke, halfStroke),
-                end = Offset(size.width - halfStroke, halfStroke + drawHeight),
+                start = Offset(size.width - halfStroke + spacingPx, halfStroke - spacingPx), // 右移
+                end = Offset(size.width - halfStroke + spacingPx, halfStroke + drawHeight - spacingPx),
                 strokeWidth = strokeWidth,
                 cap = StrokeCap.Round
             )
             remaining -= drawHeight
         }
 
-        // 下边（从右到左）
+        // 下边（添加垂直间距）
         if (remaining > 0) {
             val bottomAvailable = size.width - strokeWidth
             val drawWidth = minOf(remaining, bottomAvailable)
@@ -72,34 +75,34 @@ fun Modifier.borderProgress(
                     start = Offset(size.width - halfStroke, size.height - halfStroke),
                     end = Offset(size.width - halfStroke - drawWidth, size.height - halfStroke)
                 ),
-                start = Offset(size.width - halfStroke, size.height - halfStroke),
-                end = Offset(size.width - halfStroke - drawWidth, size.height - halfStroke),
+                start = Offset(size.width - halfStroke + spacingPx, size.height - halfStroke + spacingPx), // 下移
+                end = Offset(size.width - halfStroke - drawWidth + spacingPx, size.height - halfStroke + spacingPx),
                 strokeWidth = strokeWidth,
                 cap = StrokeCap.Round
             )
             remaining -= drawWidth
         }
 
-        // 左边（从下到上）
+        // 左边（添加水平间距）
         if (remaining > 0) {
             val leftAvailable = size.height - strokeWidth
             val drawHeight = minOf(remaining, leftAvailable)
-            val endY = (size.height - halfStroke) - drawHeight
+            val endY = (size.height - halfStroke) - drawHeight + spacingPx
             drawLine(
                 brush = Brush.linearGradient(
                     colors = listOf(endColor, startColor), // 反转颜色顺序
                     start = Offset(halfStroke, size.height - halfStroke),
                     end = Offset(halfStroke, endY)
                 ),
-                start = Offset(halfStroke, size.height - halfStroke),
-                end = Offset(halfStroke, endY),
+                start = Offset(halfStroke - spacingPx, size.height - halfStroke + spacingPx), // 左移
+                end = Offset(halfStroke - spacingPx, endY),
                 strokeWidth = strokeWidth,
                 cap = StrokeCap.Round
             )
             remaining -= drawHeight
         }
 
-        // 上边左半部分（从左到右）
+        // 上边左半部分（添加垂直间距）
         if (remaining > 0) {
             val topLeftAvailable = size.width / 2 - halfStroke
             val drawLength = minOf(remaining, topLeftAvailable)
@@ -109,8 +112,8 @@ fun Modifier.borderProgress(
                     start = Offset(halfStroke, halfStroke),
                     end = Offset(halfStroke + drawLength, halfStroke)
                 ),
-                start = Offset(halfStroke, halfStroke),
-                end = Offset(halfStroke + drawLength, halfStroke),
+                start = Offset(halfStroke - spacingPx, halfStroke - spacingPx), // 左移+上移
+                end = Offset(halfStroke + drawLength - spacingPx, halfStroke - spacingPx),
                 strokeWidth = strokeWidth,
                 cap = StrokeCap.Round
             )

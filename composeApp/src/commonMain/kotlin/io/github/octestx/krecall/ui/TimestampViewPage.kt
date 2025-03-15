@@ -31,7 +31,7 @@ class TimestampViewPage(private val model: TimestampViewPageModel): AbsUIPage<An
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun UI(state: TimestampViewPageState) {
-        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+        Column {
             TopAppBar(title = {
                 Text(text = "Timestamp: ${state.dataItem.timestamp}")
             }, navigationIcon = {
@@ -41,58 +41,91 @@ class TimestampViewPage(private val model: TimestampViewPageModel): AbsUIPage<An
                     Icon(TablerIcons.ArrowBack, null)
                 }
             })
-            when (state.imageState) {
-                ImageState.Error -> {
-                    Text("ERROR!")
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                when (state.imageState) {
+                    ImageState.Error -> {
+                        Text("ERROR!")
+                    }
+                    ImageState.Loading -> {
+                        CircularProgressIndicator()
+                    }
+                    is ImageState.Success -> {
+                        AsyncImage(state.imageState.bytes, null, contentScale = ContentScale.FillWidth)
+                    }
                 }
-                ImageState.Loading -> {
-                    CircularProgressIndicator()
-                }
-                is ImageState.Success -> {
-                    AsyncImage(state.imageState.bytes, null, contentScale = ContentScale.Crop)
-                }
+                BasicText(
+                    text = highlightText(
+                        text = state.dataItem.data_ ?: "NULL",
+                        highlights = model.highlightSearchStr
+                    ),
+                    modifier = Modifier.padding(8.dp),
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
-            BasicText(
-                text = highlightText(
-                    text = state.dataItem.data_ ?: "NULL",
-                    highlight = model.highlightSearchStr
-                ),
-                modifier = Modifier.padding(8.dp),
-                style = MaterialTheme.typography.bodyMedium
-            )
         }
     }
-    private fun highlightText(text: String, highlight: String?): AnnotatedString {
+    private fun highlightText(text: String, highlights: List<String>): AnnotatedString {
         return buildAnnotatedString {
-            if (highlight.isNullOrEmpty()) {
+            if (highlights.isEmpty()) {
                 append(text)
                 return@buildAnnotatedString
             }
 
-            var start = 0
-            while (true) {
-                val index = text.indexOf(highlight, start, ignoreCase = false)
-                if (index == -1) {
-                    append(text.substring(start))
-                    break
-                }
+            // 预处理：收集所有匹配区间（不区分大小写）
+            val ranges = mutableListOf<IntRange>()
+            val lowerText = text.lowercase()
 
+            highlights.forEach { keyword ->
+                val lowerKeyword = keyword.lowercase()
+                var startIndex = 0
+
+                while (startIndex < text.length) {
+                    val index = lowerText.indexOf(lowerKeyword, startIndex)
+                    if (index == -1) break
+
+                    ranges.add(index until (index + keyword.length))
+                    startIndex = index + 1
+                }
+            }
+
+            // 合并重叠/相邻的区间
+            val mergedRanges = ranges.sortedBy { it.first }.fold(mutableListOf<IntRange>()) { acc, range ->
+                if (acc.isEmpty()) {
+                    acc.add(range)
+                } else {
+                    val last = acc.last()
+                    if (range.first <= last.last) {
+                        acc[acc.lastIndex] = last.first..maxOf(last.last, range.last)
+                    } else {
+                        acc.add(range)
+                    }
+                }
+                acc
+            }
+
+            // 构建带高亮的文本
+            var lastPos = 0
+            mergedRanges.forEach { range ->
                 // 添加非高亮部分
-                append(text.substring(start, index))
+                if (range.first > lastPos) {
+                    append(text.substring(lastPos, range.first))
+                }
 
                 // 添加高亮部分
-                withStyle(
-                    style = SpanStyle(
-                        background = Color.Yellow.copy(alpha = 0.4f)
-                    )
-                ) {
-                    append(text.substring(index, index + highlight.length))
+                withStyle(SpanStyle(background = Color.Yellow.copy(alpha = 0.4f))) {
+                    append(text.substring(range))
                 }
 
-                start = index + highlight.length
+                lastPos = range.last
+            }
+
+            // 添加剩余部分
+            if (lastPos < text.length) {
+                append(text.substring(lastPos, text.length))
             }
         }
     }
+
     sealed class TimestampViewPageAction : AbsUIAction() {
         data object GoBack: TimestampViewPageAction()
     }
@@ -102,14 +135,20 @@ class TimestampViewPage(private val model: TimestampViewPageModel): AbsUIPage<An
         val action: (TimestampViewPageAction) -> Unit
     ): AbsUIState<TimestampViewPageAction>()
 
-    class TimestampViewPageModel(private val dataItem: DataItem, val highlightSearchStr: String? = null, private val goBack: () -> Unit): AbsUIModel<Any?, TimestampViewPageState, TimestampViewPageAction>() {
+    data class TimestampViewPageModelData(
+        val dataItem: DataItem,
+        val highlights: List<String>
+    )
+
+    class TimestampViewPageModel(private val dataItem: DataItem, val highlightSearchStr: List<String>, private val goBack: () -> Unit): AbsUIModel<Any?, TimestampViewPageState, TimestampViewPageAction>() {
+        constructor(data: TimestampViewPageModelData, goBack: () -> Unit): this(data.dataItem, data.highlights, goBack)
+
         val ologger = noCoLogger<TimestampViewPageModel>()
 
         private var imgState: ImageState by  mutableStateOf(ImageState.Loading)
 
         @Composable
         override fun CreateState(params: Any?): TimestampViewPageState {
-            // ✅ 优化后的加载逻辑
             LaunchedEffect(Unit) {
                 if (GlobalRecalling.imageCache.containsKey(dataItem.timestamp)) {
                     imgState = ImageState.Success(GlobalRecalling.imageCache[dataItem.timestamp]!!)

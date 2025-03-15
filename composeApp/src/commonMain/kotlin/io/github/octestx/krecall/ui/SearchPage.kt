@@ -1,18 +1,17 @@
 package io.github.octestx.krecall.ui
 
-import androidx.compose.foundation.VerticalScrollbar
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.rememberScrollbarAdapter
-import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -21,25 +20,85 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import compose.icons.TablerIcons
+import compose.icons.tablericons.Send
 import io.github.octestx.krecall.GlobalRecalling
 import io.github.octestx.krecall.model.ImageState
 import io.github.octestx.krecall.plugins.PluginManager
 import io.github.octestx.krecall.repository.DataDB
 import io.klogging.noCoLogger
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import models.sqld.DataItem
+import okio.withLock
 import ui.core.AbsUIPage
+import java.util.concurrent.locks.ReentrantLock
 
 class SearchPage(model: SearchPageModel): AbsUIPage<Any?, SearchPage.SearchPageState, SearchPage.SearchPageAction>(model) {
     private val ologger = noCoLogger<SearchPage>()
     @Composable
     override fun UI(state: SearchPageState) {
         Column {
-            Row {
-                TextField(state.searchText, { state.action(SearchPageAction.ChangeSearchText(it)) })
+            Column {
+                AnimatedVisibility(state.searchResult.isNotEmpty()) {
+                    Text("Search result: ${state.searchResult.size}")
+                }
+                Row {
+                    OutlinedTextField(
+                        value = state.searchText,
+                        onValueChange = { state.action(SearchPageAction.ChangeSearchText(it)) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = {
+                        if (state.searchText.isNotBlank()) {
+                            state.action(SearchPageAction.AddTag(state.searchText))
+                            state.action(SearchPageAction.ChangeSearchText("")) // 清空输入
+                        }
+                    }) {
+                        Icon(TablerIcons.Send, null)
+                    }
+                }
+
+                Box(modifier = Modifier.height(56.dp)) { // 限制高度避免内容溢出
+                    val lazyListState = rememberLazyListState()
+
+                    HorizontalScrollbar(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth(0.9f) // 宽度略小于内容区
+                            .height(8.dp)
+                            .background(Color.Transparent),
+                        adapter = rememberScrollbarAdapter(lazyListState),
+                        style = ScrollbarStyle(
+                            minimalHeight = 16.dp,
+                            thickness = 8.dp,
+                            shape = RoundedCornerShape(4.dp),
+                            hoverDurationMillis = 300,
+                            unhoverColor = Color.Gray.copy(alpha = 0.4f),
+                            hoverColor = Color.DarkGray
+                        )
+                    )
+
+                    LazyRow(
+                        state = lazyListState, // 绑定滚动状态
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 4.dp) // 给滚动条留出空间
+                    ) {
+                        items(state.tags) { tag ->
+                            ElevatedFilterChip(
+                                selected = false,
+                                onClick = { state.action(SearchPageAction.RemoveTag(tag)) },
+                                label = { Text(text = tag) }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+                    }
+                }
             }
             Box {
-
                 LazyVerticalGrid(GridCells.FixedSize(100.dp), state = state.lazyGridState) {
                     items(state.searchResult, key = { it.timestamp }) { item ->
                         Card(Modifier.padding(6.dp).clickable {
@@ -55,10 +114,9 @@ class SearchPage(model: SearchPageModel): AbsUIPage<Any?, SearchPage.SearchPageS
                                     CircularProgressIndicator()
                                 }
                                 is ImageState.Success -> {
-                                    AsyncImage((imgState as ImageState.Success).bytes, null, contentScale = ContentScale.Crop)
+                                    AsyncImage((imgState as ImageState.Success).bytes, null, contentScale = ContentScale.FillWidth)
                                 }
                             }
-                            // ✅ 优化后的加载逻辑
                             LaunchedEffect(timestamp) {
                                 if (GlobalRecalling.imageCache.containsKey(timestamp)) {
                                     imgState = ImageState.Success(GlobalRecalling.imageCache[timestamp]!!)
@@ -101,23 +159,28 @@ class SearchPage(model: SearchPageModel): AbsUIPage<Any?, SearchPage.SearchPageS
     sealed class SearchPageAction : AbsUIAction() {
         data class ChangeSearchText(val newText: String): SearchPageAction()
         data class JumpView(val dataItem: DataItem): SearchPageAction()
+        data class AddTag(val tag: String): SearchPageAction()
+        data class RemoveTag(val tag: String): SearchPageAction()
     }
     data class SearchPageState(
         val searchText: String,
         val searchResult: List<DataItem>,
         val lazyGridState: LazyGridState,
+        val tags: List<String>,
         val action: (SearchPageAction) -> Unit
     ): AbsUIState<SearchPageAction>()
 
-    class SearchPageModel(private val jumpView: (data: DataItem, search: String) -> Unit): AbsUIModel<Any?, SearchPageState, SearchPageAction>() {
+    class SearchPageModel(private val jumpView: (data: DataItem, search: List<String>) -> Unit): AbsUIModel<Any?, SearchPageState, SearchPageAction>() {
+        private val ioscope = CoroutineScope(Dispatchers.IO)
         val ologger = noCoLogger<SearchPageModel>()
         private var _searchText by mutableStateOf("")
         private val _searchResultList = mutableStateListOf<DataItem>()
         private val _lazyGridState = LazyGridState()
+        private val _tags = mutableStateListOf<String>()
 
         @Composable
         override fun CreateState(params: Any?): SearchPageState {
-            return SearchPageState(_searchText, _searchResultList, _lazyGridState) {
+            return SearchPageState(_searchText, _searchResultList, _lazyGridState, _tags) {
                 actionExecute(params, it)
             }
         }
@@ -125,16 +188,53 @@ class SearchPage(model: SearchPageModel): AbsUIPage<Any?, SearchPage.SearchPageS
             when(action) {
                 is SearchPageAction.ChangeSearchText -> {
                     _searchText = action.newText
-                    search(action.newText)
+                    ioscope.launch {
+                        search(action.newText, _tags)
+                    }
                 }
-                is SearchPageAction.JumpView -> jumpView(action.dataItem, _searchText)
+                is SearchPageAction.JumpView -> jumpView(action.dataItem, getSearchTags(_searchText, _tags))
+                is SearchPageAction.AddTag -> {
+                    if (_tags.contains(action.tag)) {
+                        return
+                    }
+                    _tags.add(action.tag)
+                    ioscope.launch {
+                        search(_searchText, _tags)
+                    }
+                }
+                is SearchPageAction.RemoveTag -> {
+                    if (!_tags.contains(action.tag)) {
+                        return
+                    }
+                    _tags.remove(action.tag)
+                    ioscope.launch {
+                        search(_searchText, _tags)
+                    }
+                }
             }
         }
-        private fun search(text: String) {
-            ologger.info { "Searching" }
-            _searchResultList.clear()
-            _searchResultList.addAll(DataDB.searchDataInAll(text))
-            ologger.info { "Searched: ${_searchResultList.size}" }
+        private fun getSearchTags(text: String, tags: List<String>): List<String> {
+            if (text.isBlank() && tags.isEmpty()) {
+                return listOf()
+            }
+            return if (text.isBlank()) {
+                tags
+            } else {
+                listOf(text, *tags.toTypedArray())
+            }
+        }
+        private val searchingLock = ReentrantLock()
+        private suspend fun search(text: String, tags: List<String>) {
+            searchingLock.withLock {
+                _searchResultList.clear()
+                val list = getSearchTags(text, tags)
+                if (list.isEmpty()) {
+                    return
+                }
+                ologger.info { "Searching: $list" }
+                _searchResultList.addAll(DataDB.searchDataInAll(list))
+                ologger.info { "Searched: ${_searchResultList.size}" }
+            }
         }
     }
 }

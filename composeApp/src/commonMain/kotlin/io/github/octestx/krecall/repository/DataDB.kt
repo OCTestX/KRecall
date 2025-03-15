@@ -3,6 +3,8 @@ package io.github.octestx.krecall.repository
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import io.klogging.noCoLogger
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.io.files.Path
 import models.sqld.DataDBQueries
 import models.sqld.DataItem
@@ -36,12 +38,32 @@ object DataDB {
         return dataDBQueries.listNotProcessedData().executeAsList()
     }
 
-    fun searchDataInAll(query: String): List<DataItem> {
-        return dataDBQueries.searchDataInAll("%$query%").executeAsList()
+    suspend fun searchDataInAll(queries: List<String>): List<DataItem> {
+        return withContext(Dispatchers.IO) {
+            if (queries.isEmpty()) return@withContext emptyList()
+
+            // 按结果集大小排序，从小集合开始交
+            val sortedSets = queries.map { query ->
+                dataDBQueries.searchDataInAll("%$query%").executeAsList().toSet()
+            }.sortedBy { it.size }
+
+            return@withContext sortedSets.reduceOrNull { acc, set ->
+                acc.intersect(set).takeIf { it.isNotEmpty() } ?: return@withContext emptyList()
+            }?.toList() ?: emptyList()
+        }
     }
 
-    fun searchDataWithTimeRange(startTimestamp: Long, endTimestamp: Long, query: String): List<DataItem> {
-        return dataDBQueries.searchDataWithTimeRange(startTimestamp, endTimestamp, "%$query%").executeAsList()
+    fun searchDataWithTimeRange(startTimestamp: Long, endTimestamp: Long, queries: List<String>): List<DataItem> {
+        if (queries.isEmpty()) return emptyList()
+
+        // 按结果集大小排序，从小集合开始交
+        val sortedSets = queries.map { query ->
+            dataDBQueries.searchDataWithTimeRange(startTimestamp, endTimestamp, "%$query%").executeAsList().toSet()
+        }.sortedBy { it.size }
+
+        return sortedSets.reduceOrNull { acc, set ->
+            acc.intersect(set).takeIf { it.isNotEmpty() } ?: return emptyList()
+        }?.toList() ?: emptyList()
     }
 
     fun addNewRecord(timestamp: Long) {

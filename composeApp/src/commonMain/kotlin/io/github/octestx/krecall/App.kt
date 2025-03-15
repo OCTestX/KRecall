@@ -21,18 +21,17 @@ import io.github.octestx.krecall.ui.TimestampViewPage
 import io.github.octestx.krecall.ui.tour.LoadingPage
 import io.github.octestx.krecall.ui.tour.RecallSettingPage
 import io.github.octestx.krecall.ui.tour.WelcomePage
-import models.sqld.DataItem
+import io.klogging.noCoLogger
 import moe.tlaster.precompose.PreComposeApp
-import moe.tlaster.precompose.navigation.NavHost
-import moe.tlaster.precompose.navigation.NavOptions
-import moe.tlaster.precompose.navigation.PopUpTo
-import moe.tlaster.precompose.navigation.rememberNavigator
+import moe.tlaster.precompose.navigation.*
 import moe.tlaster.precompose.navigation.transition.NavTransition
 import org.jetbrains.compose.ui.tooling.preview.Preview
+import java.util.UUID
 
 @Composable
 @Preview
 fun App() {
+    val ologger = noCoLogger("@Composable_App")
     BasicMUIWrapper {
         PreComposeApp {
             // An alias of SingletonImageLoader.setSafe that's useful for
@@ -50,6 +49,7 @@ fun App() {
             }
 
             val navigator = rememberNavigator()
+            val navDataExchangeCache = mutableMapOf<String, Any?>()
             NavHost(
                 // 将 Navigator 给到 NavHost
                 navigator = navigator,
@@ -73,8 +73,6 @@ fun App() {
 //                        }
 //                    },
             ) {
-                var currentViewDataItem by  mutableStateOf<DataItem?>(null)
-                var currentHighlightSearchStr: String? by mutableStateOf(null)
                 scene(
                     route = "/loading",
                     navTransition = NavTransition(),
@@ -151,9 +149,11 @@ fun App() {
                         val homePage = rememberSaveable() { HomePage(homeModel) }
 
                         val searchModel = rememberSaveable() { SearchPage.SearchPageModel(jumpView = { data, search ->
-                            currentViewDataItem = data
-                            currentHighlightSearchStr = search
-                            navigator.navigate("/timestampViewPage")
+                            val modelData = TimestampViewPage.TimestampViewPageModelData(data, search)
+                            val modelDataId = UUID.randomUUID().toString()
+                            navDataExchangeCache[modelDataId] = modelData
+                            ologger.info { "SendModelDataId: $modelDataId" }
+                            navigator.navigate("/timestampViewPage?modelDataId=$modelDataId")
                         }) }
                         val searchPage = rememberSaveable() { SearchPage(searchModel) }
                         // 内容区域
@@ -171,7 +171,10 @@ fun App() {
                     route = "/timestampViewPage",
                     navTransition = NavTransition(),
                 ) {
-                    val model = remember { TimestampViewPage.TimestampViewPageModel(currentViewDataItem!!, currentHighlightSearchStr) {
+                    val modelDataId = it.query<String>("modelDataId")
+                    ologger.info { "ReceiveModelDataId: $modelDataId" }
+                    val modelData: TimestampViewPage.TimestampViewPageModelData = navDataExchangeCache[modelDataId] as TimestampViewPage.TimestampViewPageModelData
+                    val model = remember { TimestampViewPage.TimestampViewPageModel(modelData) {
                         navigator.goBack()
                     } }
                     val page = remember {
