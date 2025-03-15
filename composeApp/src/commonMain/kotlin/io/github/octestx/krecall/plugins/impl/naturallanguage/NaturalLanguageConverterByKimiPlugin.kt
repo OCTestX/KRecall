@@ -17,6 +17,7 @@ import com.zhipu.oapi.service.v4.model.ChatMessageRole
 import com.zhipu.oapi.service.v4.model.ModelApiResponse
 import io.github.kotlin.fibonacci.utils.ojson
 import io.github.octestx.krecall.exceptions.ConfigurationNotSavedException
+import io.github.octestx.krecall.plugins.basic.AIResult
 import io.github.octestx.krecall.plugins.basic.AbsNaturalLanguageConverterPlugin
 import io.github.octestx.krecall.plugins.impl.storage.OTStoragePlugin
 import io.klogging.noCoLogger
@@ -43,7 +44,7 @@ class NaturalLanguageConverterByKimiPlugin: AbsNaturalLanguageConverterPlugin("N
     )
     private val defaultSystemMsg = "你是一个分词ai,将我给你的文字分割多个词语"
 
-    override suspend fun convert(natural: String): String {
+    override suspend fun convert(natural: String): AIResult<String> {
         val messages: MutableList<ChatMessage> = ArrayList()
         val contentList: MutableList<Map<String, Any>> = ArrayList()
         val textMap: MutableMap<String, Any> = HashMap()
@@ -67,7 +68,7 @@ class NaturalLanguageConverterByKimiPlugin: AbsNaturalLanguageConverterPlugin("N
             .build()
         val modelApiResponse: ModelApiResponse = client.invokeModelApi(chatCompletionRequest)
         val msg = modelApiResponse.msg
-        return msg
+        TODO()
     }
 
     private val client: ClientV4 by lazy {

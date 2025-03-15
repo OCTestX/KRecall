@@ -23,8 +23,11 @@ import com.zhipu.oapi.ClientV4
 import com.zhipu.oapi.service.v4.model.ModelApiResponse
 import io.github.kotlin.fibonacci.utils.ojson
 import io.github.octestx.krecall.exceptions.ConfigurationNotSavedException
+import io.github.octestx.krecall.plugins.basic.AIErrorType
+import io.github.octestx.krecall.plugins.basic.AIResult
 import io.github.octestx.krecall.plugins.basic.AbsScreenLanguageConverterPlugin
 import io.github.octestx.krecall.plugins.impl.storage.OTStoragePlugin
+import io.github.octestx.krecall.repository.DataDB
 import io.klogging.noCoLogger
 import io.ktor.util.*
 import kotlinx.coroutines.delay
@@ -63,7 +66,7 @@ class ScreenLanguageConverterByZhiPuPlugin: AbsScreenLanguageConverterPlugin("Sc
         code.kt
     """.trimIndent()
 
-    override suspend fun convert(screen: ByteArray): String {
+    override suspend fun convert(screen: ByteArray): AIResult<String> {
         val imgBase64 = screen.encodeBase64()
 //        val messages: MutableList<ChatMessage> = ArrayList()
 //        val contentList: MutableList<Map<String, Any>> = ArrayList()
@@ -105,12 +108,16 @@ class ScreenLanguageConverterByZhiPuPlugin: AbsScreenLanguageConverterPlugin("Sc
             frequencyPenalty = config.frequencyPenalty,
         )
         ologger.info { "ConvertingData..." }
-//        val modelApiResponse: ModelApiResponse = client.invokeModelApi(chatCompletionRequest)
-//        val msg = modelApiResponse.data.choices[0].message.content.toString()
         val completion: ChatCompletion = openAI.chatCompletion(chatCompletionRequest)
-        val msg = completion.choices[0].message.content!!
-        ologger.info { "ConvertedData: $msg" }
-        return msg
+        try {
+            val msg = completion.choices[0].message.content!!
+            ologger.info { "ConvertedData: $msg" }
+            return AIResult.Success(msg)
+        } catch (e: Exception) {
+            //TODO 错误类型分类
+            ologger.error(e) { "ConvertDataError: ${e.message}" }
+            return AIResult.Failed(e, AIErrorType.UNKNOWN)
+        }
     }
 
 //    private val client: ClientV4 by lazy {

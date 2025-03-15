@@ -89,4 +89,12 @@ object DataDB {
     fun listTimestampWithNotMark(mark: String): List<Long> {
         return dataDBQueries.listTimestampWithNotMark(mark).executeAsList()
     }
+
+    fun happenError(timestamp: Long, error: Exception) {
+        dataDBQueries.happenError("${error.message}\n${error.stackTraceToString()}", timestamp)
+    }
+
+    fun appendOCRData(timestamp: Long, data: String) {
+        dataDBQueries.appendOCRData(data, timestamp)
+    }
 }

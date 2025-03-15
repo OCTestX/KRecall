@@ -36,7 +36,7 @@ appendData:
 UPDATE DataItem SET data = ? WHERE timestamp = ?;
 
 processed:
-UPDATE DataItem SET status = 1 WHERE timestamp = ?;
+UPDATE DataItem SET status = 1, error = NULL WHERE timestamp = ?;
 
 markScreenData:
 UPDATE DataItem SET mark = ? WHERE timestamp = ?;
@@ -46,3 +46,9 @@ SELECT timestamp FROM DataItem WHERE mark = ?;
 
 listTimestampWithNotMark:
 SELECT timestamp FROM DataItem WHERE mark != ?;
+
+happenError:
+UPDATE DataItem SET status = 2, error = ? WHERE timestamp = ?;
+
+appendOCRData:
+UPDATE DataItem SET ocr = ? WHERE timestamp = ?;

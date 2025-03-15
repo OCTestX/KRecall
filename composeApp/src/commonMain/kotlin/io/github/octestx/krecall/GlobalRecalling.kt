@@ -2,6 +2,7 @@ package io.github.octestx.krecall
 
 import androidx.compose.runtime.mutableStateListOf
 import io.github.octestx.krecall.plugins.PluginManager
+import io.github.octestx.krecall.plugins.basic.AIResult
 import io.github.octestx.krecall.repository.ConfigManager
 import io.github.octestx.krecall.repository.DataDB
 import io.github.octestx.krecall.repository.TimeStamp
@@ -84,9 +85,13 @@ object GlobalRecalling {
                         val screen = storage.getScreenData(timestamp)
                         screen.onSuccess {
                             val data = screenLanguageConverterPlugin.convert(it)
-                            DataDB.appendData(timestamp, data)
-                            storage.processed(timestamp)
-                            DataDB.processed(timestamp)
+                            if (data is AIResult.Success) {
+                                DataDB.appendData(timestamp, data.result)
+                                storage.processed(timestamp)
+                                DataDB.processed(timestamp)
+                            } else if (data is AIResult.Failed) {
+                                DataDB.happenError(timestamp, data.error)
+                            }
                         }
                         ologger.info { "processed: $timestamp" }
                     } catch (e: Throwable) {

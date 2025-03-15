@@ -172,7 +172,9 @@ fun App() {
                     navTransition = NavTransition(),
                 ) {
                     val modelDataId = it.query<String>("modelDataId")
-                    ologger.info { "ReceiveModelDataId: $modelDataId" }
+                    LaunchedEffect(Unit) {
+                        ologger.info { "ReceiveModelDataId: $modelDataId" }
+                    }
                     val modelData: TimestampViewPage.TimestampViewPageModelData = navDataExchangeCache[modelDataId] as TimestampViewPage.TimestampViewPageModelData
                     val model = remember { TimestampViewPage.TimestampViewPageModel(modelData) {
                         navigator.goBack()
