@@ -185,14 +185,15 @@ class OTStoragePlugin: AbsStoragePlugin(pluginId = "OTStoragePlugin") {
     }
 
 
-    override fun tryInitInner(): Exception? {
+    override fun tryInitInner(): InitResult {
         ologger.info { "TryInit" }
         if (savedConfig.value.not()) {
-            return ConfigurationNotSavedException()
+            return InitResult.Failed(ConfigurationNotSavedException())
         }
+        if (getScreenDir().canRead().not()) return InitResult.Failed(FileNotFoundException("Can't read: ${getScreenDir().absolutePath}"))
         ologger.info { "Initialized" }
         _initialized.value = true
-        return null
+        return InitResult.Success
     }
 
     private val _initialized = MutableStateFlow(false)

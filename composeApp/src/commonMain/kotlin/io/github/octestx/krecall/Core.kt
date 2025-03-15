@@ -6,6 +6,7 @@ import io.github.kotlin.fibonacci.JVMUIInitCenter
 import io.github.octestx.krecall.plugins.PluginManager
 import io.github.octestx.krecall.plugins.basic.IPluginContext
 import io.github.octestx.krecall.plugins.impl.PluginContextImpl
+import io.github.octestx.krecall.repository.ConfigManager
 import io.github.octestx.krecall.repository.FileTree
 import io.klogging.noCoLogger
 import kotlinx.coroutines.CoroutineScope
@@ -40,7 +41,12 @@ object Core {
         JVMUIInitCenter.init()
 
         FileTree.init()
-        runBlocking { PluginManager.init() }
+        runBlocking {
+            PluginManager.init()
+            if (ConfigManager.config.initialized) {
+                PluginManager.initAllPlugins()
+            }
+        }
 
         initialized = true
         ologger.info { "INITIALIZED" }

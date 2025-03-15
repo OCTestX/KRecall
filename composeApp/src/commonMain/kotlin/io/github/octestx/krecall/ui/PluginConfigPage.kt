@@ -17,7 +17,7 @@ import io.github.octestx.krecall.plugins.basic.*
 import io.klogging.noCoLogger
 import ui.core.AbsUIPage
 
-class PluginConfigPage(model: PluginConfigModel, private val configDone: () -> Unit): AbsUIPage<Any?, PluginConfigPage.PluginConfigState, PluginConfigPage.PluginConfigAction>(model) {
+class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPage.PluginConfigState, PluginConfigPage.PluginConfigAction>(model) {
     private val ologger = noCoLogger<PluginConfigPage>()
     @Composable
     override fun UI(state: PluginConfigState) {
@@ -27,7 +27,7 @@ class PluginConfigPage(model: PluginConfigModel, private val configDone: () -> U
                 if (allInitialized.value) {
                     Text("AllPluginsInitialized")
                     Button(onClick = {
-                        configDone()
+                        state.action(PluginConfigAction.ConfigDone)
                     }) {
                         Text("ConfigDone")
                     }
@@ -66,7 +66,9 @@ class PluginConfigPage(model: PluginConfigModel, private val configDone: () -> U
                         Text("$type[${it.pluginId}]: 未初始化[${err?.message}]", color = MaterialTheme.colorScheme.secondary, modifier = Modifier.weight(1f))
                     }
                     Button(onClick = {
-                        it.tryInit().also { err = it }
+                        it.tryInit().also { initResult ->
+                            if (initResult is PluginBasic.InitResult.Failed) err = initResult.exception
+                        }
                     }) {
                         Text("INIT", modifier = Modifier.padding(4.dp))
                     }
@@ -97,9 +99,10 @@ class PluginConfigPage(model: PluginConfigModel, private val configDone: () -> U
         val storagePlugin: Result<AbsStoragePlugin>,
         val naturalLanguageConverterPlugin: Result<AbsNaturalLanguageConverterPlugin>,
         val screenLanguageConverterPlugin: Result<AbsScreenLanguageConverterPlugin>,
+        val action: (PluginConfigAction) -> Unit,
     ): AbsUIState<PluginConfigAction>()
 
-    class PluginConfigModel: AbsUIModel<Any?, PluginConfigState, PluginConfigAction>() {
+    class PluginConfigModel(private val configDone: () -> Unit): AbsUIModel<Any?, PluginConfigState, PluginConfigAction>() {
         val ologger = noCoLogger<PluginConfigModel>()
         @Composable
         override fun CreateState(params: Any?): PluginConfigState {
@@ -108,7 +111,9 @@ class PluginConfigPage(model: PluginConfigModel, private val configDone: () -> U
                 PluginManager.getStoragePlugin(),
                 PluginManager.getNaturalLanguageConverterPlugin(),
                 PluginManager.getScreenLanguageConverterPlugin(),
-            )
+            ) {
+                actionExecute(params, it)
+            }
         }
         override fun actionExecute(params: Any?, action: PluginConfigAction) {
             when(action) {
@@ -125,6 +130,7 @@ class PluginConfigPage(model: PluginConfigModel, private val configDone: () -> U
                         ologger.info { "All plugins are initialized" }
                         toast.applyShow("TODO, ConfigDone")
                     }
+                    configDone()
                 }
             }
         }

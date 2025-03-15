@@ -16,10 +16,14 @@ object PluginManager {
     private val _naturalLanguageConverterPlugin: MutableStateFlow<Result<AbsNaturalLanguageConverterPlugin>> = MutableStateFlow(Result.failure(Exception("Plugin not loaded")))
     private val _screenLanguageConverterPlugin: MutableStateFlow<Result<AbsScreenLanguageConverterPlugin>> = MutableStateFlow(Result.failure(Exception("Plugin not loaded")))
 
+    private val _needJumpConfigUI: MutableStateFlow<Boolean> = MutableStateFlow(false)
+
     val getScreenPlugin: StateFlow<Result<AbsGetScreenPlugin>> get() = _getScreenPlugin
     val storagePlugin: StateFlow<Result<AbsStoragePlugin>> get() = _storagePlugin
     val naturalLanguageConverterPlugin: StateFlow<Result<AbsNaturalLanguageConverterPlugin>> get() = _naturalLanguageConverterPlugin
     val screenLanguageConverterPlugin: StateFlow<Result<AbsScreenLanguageConverterPlugin>> get() = _screenLanguageConverterPlugin
+
+    val needJumpConfigUI: StateFlow<Boolean> get() = _needJumpConfigUI
 
     suspend fun init() {
         ologger.info { "InitPlugins" }
@@ -111,10 +115,22 @@ object PluginManager {
     }
 
     fun initAllPlugins() {
-        getScreenPlugin().getOrThrow().tryInit()?.apply { throw this }
-        getStoragePlugin().getOrThrow().tryInit()?.apply { throw this }
-        getNaturalLanguageConverterPlugin().getOrThrow().tryInit()?.apply { throw this }
-        getScreenLanguageConverterPlugin().getOrThrow().tryInit()?.apply { throw this }
+        getScreenPlugin().getOrThrow().tryInit().apply {
+            if (this is PluginBasic.InitResult.Failed || this is PluginBasic.InitResult.RequestConfigUI) _needJumpConfigUI.value = true
+            if (this is PluginBasic.InitResult.Failed) throw this.exception
+        }
+        getStoragePlugin().getOrThrow().tryInit().apply {
+            if (this is PluginBasic.InitResult.Failed || this is PluginBasic.InitResult.RequestConfigUI) _needJumpConfigUI.value = true
+            if (this is PluginBasic.InitResult.Failed) throw this.exception
+        }
+        getNaturalLanguageConverterPlugin().getOrThrow().tryInit().apply {
+            if (this is PluginBasic.InitResult.Failed || this is PluginBasic.InitResult.RequestConfigUI) _needJumpConfigUI.value = true
+            if (this is PluginBasic.InitResult.Failed) throw this.exception
+        }
+        getScreenLanguageConverterPlugin().getOrThrow().tryInit().apply {
+            if (this is PluginBasic.InitResult.Failed || this is PluginBasic.InitResult.RequestConfigUI) _needJumpConfigUI.value = true
+            if (this is PluginBasic.InitResult.Failed) throw this.exception
+        }
     }
     lateinit var allPluginsInitialized: StateFlow<Boolean> private set
     private suspend fun createAllPluginsInitializedFlow() {

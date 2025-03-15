@@ -13,7 +13,9 @@ import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
 import io.github.octestx.krecall.GlobalRecalling
 import io.github.octestx.krecall.plugins.PluginManager
+import io.github.octestx.krecall.repository.ConfigManager
 import io.github.octestx.krecall.repository.DataDB
+import io.github.octestx.krecall.ui.utils.borderProgress
 import io.klogging.noCoLogger
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.ExperimentalResourceApi
@@ -26,21 +28,24 @@ class HomePage(model: HomePageModel): AbsUIPage<Any?, HomePage.HomePageState, Ho
     @Composable
     override fun UI(state: HomePageState) {
         Column {
-            Row {
+            val collectingScreenDelay by GlobalRecalling.collectingDelay.collectAsState()
+            Row(Modifier.borderProgress((collectingScreenDelay.toDouble() / ConfigManager.config.collectScreenDelay).toFloat())) {
                 val collectingScreen by GlobalRecalling.collectingScreen.collectAsState()
-                Text("CollectingScreen")
+                Text("CollectingScreen[${"%.1f".format(collectingScreenDelay.toDouble() / 1000)}s]")
                 Switch(collectingScreen, { state.action(HomePageAction.ChangeCollectingScreen(!collectingScreen)) })
             }
             Row {
                 val processingData by GlobalRecalling.processingData.collectAsState()
-                Text("ProcessingData")
+                Text("ProcessingData[${GlobalRecalling.processingDataList.count.collectAsState().value}]")
                 Switch(processingData, { state.action(HomePageAction.ChangeProcessingData(!processingData)) })
+                if (processingData) {
+                    CircularProgressIndicator()
+                }
             }
             Row {
                 Text("theNowMode")
                 Switch(state.theNowMode, { state.action(HomePageAction.ChangeTheNowMode(!state.theNowMode)) })
             }
-            Text("ProcessingData: ${GlobalRecalling.processingDataList.count.collectAsState().value}")
             Column(modifier = Modifier.verticalScroll(state.scrollState)) {
                 if (state.selectedTimestampIndex >= 0) {
                     // 添加时间戳控制器

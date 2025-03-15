@@ -14,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.decodeToImageBitmap
@@ -58,11 +59,7 @@ class GetScreenByKDESpectaclePlugin: AbsGetScreenPlugin(pluginId = "GetScreenByK
         Column {
             Button(onClick = {
                 scope.launch {
-                    val f = File(pluginDir, "test.png")
-                    getScreen(f)
-                    if (!f.exists()) {
-                        throw FileNotFoundException("testFile not found")
-                    }
+                    val f = test()
                     val img = f.inputStream().readAllBytes().decodeToImageBitmap()
                     painter = BitmapPainter(img)
                     ologger.info("Test: ${f.absolutePath}")
@@ -74,11 +71,33 @@ class GetScreenByKDESpectaclePlugin: AbsGetScreenPlugin(pluginId = "GetScreenByK
         }
     }
 
+    private suspend fun test(): File {
+        val f = File(pluginDir, "test.png")
+        getScreen(f)
+        if (!f.exists()) {
+            throw FileNotFoundException("testFile not found")
+        }
+        ologger.info("Test: ${f.absolutePath}")
+        return f
+    }
 
-    override fun tryInitInner(): Exception? {
+
+    override fun tryInitInner(): InitResult {
         ologger.info { "TryInit" }
-        _initialized.value = true
-        return null
+        val e = runBlocking {
+            try {
+                test()
+                null
+            } catch (e: Exception) {
+                e
+            }
+        }
+        if (e == null) {
+            _initialized.value = true
+            return InitResult.Success
+        } else {
+            return InitResult.Failed(e)
+        }
     }
 
     private val _initialized = MutableStateFlow(false)

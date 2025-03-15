@@ -231,16 +231,16 @@ class ScreenLanguageConverterByZhiPuPlugin: AbsScreenLanguageConverterPlugin("Sc
         }
     }
 
-    override fun tryInitInner(): Exception? {
+    override fun tryInitInner(): InitResult {
 //        runBlocking { convert(File("/home/octest/Myself/tmp/Screenshot_20250301_234058.png").readBytes()) }
         val confined = config.apiKey.isNotEmpty() && config.model.isNotEmpty()
         if (savedConfig.value.not()) {
-            return ConfigurationNotSavedException()
+            return InitResult.Failed(ConfigurationNotSavedException())
         }
-        if (confined.not()) return IllegalArgumentException("需要补全参数")
+        if (confined.not()) return InitResult.Failed(IllegalArgumentException("需要补全参数"))
         ologger.info { "Initialized" }
         _initialized.value = true
-        return null
+        return InitResult.Success
     }
 
     private val _initialized = MutableStateFlow(false)

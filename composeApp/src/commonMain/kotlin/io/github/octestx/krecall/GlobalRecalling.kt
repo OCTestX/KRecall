@@ -20,6 +20,7 @@ object GlobalRecalling {
 
     val allTimestamp = mutableStateListOf<Long>()
     val collectingScreen = MutableStateFlow(false)
+    val collectingDelay = MutableStateFlow(0L)
     val processingData = MutableStateFlow(false)
 
     //Timestamp
@@ -27,7 +28,7 @@ object GlobalRecalling {
 
     val imageLoadingDispatcher = Dispatchers.IO.limitedParallelism(4)
     private const val MaxCacheSize = 100
-    val imageCache = object : LinkedHashMap<Long, ByteArray?>(MaxCacheSize, 0.75f, true) {
+    val imageCache: MutableMap<Long, ByteArray?> = object : LinkedHashMap<Long, ByteArray?>(MaxCacheSize, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, ByteArray?>): Boolean {
             return size > MaxCacheSize
         }
@@ -56,7 +57,12 @@ object GlobalRecalling {
                     processingDataList.addLast(timestamp)
                     allTimestamp.add(timestamp)
                 }
-                delay(ConfigManager.config.collectScreenDelay)
+                // refresh collecting screen delay for each 500 ms
+                for (i in 0 until (ConfigManager.config.collectScreenDelay / 50)) {
+                    delay(50)
+                    collectingDelay.value = (i + 1) * 50
+                }
+                collectingDelay.value = 0
             }
         }
         val processingDataJob = ioscope.launch {

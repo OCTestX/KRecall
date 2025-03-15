@@ -13,13 +13,19 @@ import coil3.compose.setSingletonImageLoaderFactory
 import coil3.memory.MemoryCache
 import coil3.request.crossfade
 import io.github.kotlin.fibonacci.ui.BasicMUIWrapper
+import io.github.octestx.krecall.repository.ConfigManager
 import io.github.octestx.krecall.ui.HomePage
 import io.github.octestx.krecall.ui.PluginConfigPage
 import io.github.octestx.krecall.ui.SearchPage
 import io.github.octestx.krecall.ui.TimestampViewPage
+import io.github.octestx.krecall.ui.tour.LoadingPage
+import io.github.octestx.krecall.ui.tour.RecallSettingPage
+import io.github.octestx.krecall.ui.tour.WelcomePage
 import models.sqld.DataItem
 import moe.tlaster.precompose.PreComposeApp
 import moe.tlaster.precompose.navigation.NavHost
+import moe.tlaster.precompose.navigation.NavOptions
+import moe.tlaster.precompose.navigation.PopUpTo
 import moe.tlaster.precompose.navigation.rememberNavigator
 import moe.tlaster.precompose.navigation.transition.NavTransition
 import org.jetbrains.compose.ui.tooling.preview.Preview
@@ -48,7 +54,7 @@ fun App() {
                 // 将 Navigator 给到 NavHost
                 navigator = navigator,
                 // 定义初始导航路径
-                initialRoute = "/pluginConfigPage",
+                initialRoute = "/loading",
                 // 自定义页面导航动画，这个是个可选项
                 navTransition = NavTransition(),
                 modifier = Modifier
@@ -70,14 +76,53 @@ fun App() {
                 var currentViewDataItem by  mutableStateOf<DataItem?>(null)
                 var currentHighlightSearchStr: String? by mutableStateOf(null)
                 scene(
+                    route = "/loading",
+                    navTransition = NavTransition(),
+                ) {
+                    val model = remember { LoadingPage.LoadingPageModel() }
+                    val page = remember {
+                        LoadingPage(model)
+                    }
+                    page.Main(Unit)
+                }
+                scene(
+                    route = "/tour/welcome",
+                    navTransition = NavTransition(),
+                ) {
+                    val model = remember { WelcomePage.WelcomePageModel(next = {
+                        navigator.navigate("/tour/recallSetting")
+                    }) }
+                    val page = remember {
+                        WelcomePage(model)
+                    }
+                    page.Main(Unit)
+                }
+                scene(
+                    route = "/tour/recallSetting",
+                    navTransition = NavTransition()
+                ) {
+                    val model = remember { RecallSettingPage.RecallSettingPageModel(next = {
+                        navigator.navigate("/pluginConfigPage")
+                    }) }
+                    val page = remember {
+                        RecallSettingPage(model)
+                    }
+                    page.Main(Unit)
+                }
+                scene(
                     route = "/pluginConfigPage",
                     navTransition = NavTransition(),
                 ) {
-                    val model = remember { PluginConfigPage.PluginConfigModel() }
-                    val page = remember {
-                        PluginConfigPage(model) {
-                            navigator.navigate("/home")
+                    val model = remember {
+                        PluginConfigPage.PluginConfigModel() {
+                            navigator.navigate("/home", options = NavOptions(popUpTo = PopUpTo.Prev))
+                            ConfigManager.save(ConfigManager.config.copy(
+                                initialized = true
+                            ))
                         }
+                    }
+                    val page = remember {
+                        PluginConfigPage(model)
                     }
                     page.Main(Unit)
                 }
@@ -133,6 +178,17 @@ fun App() {
                         TimestampViewPage(model)
                     }
                     page.Main(Unit)
+                }
+            }
+
+
+
+
+            LaunchedEffect(Unit) {
+                if (ConfigManager.config.initialized) {
+                    navigator.navigate("/home")
+                } else {
+                    navigator.navigate("/tour/welcome")
                 }
             }
         }

@@ -27,13 +27,8 @@ object ConfigManager {
     }
     @Synchronized
     fun save(newConfig: KRecallConfig) {
-        val file = File(FileTree.pluginData("KRecall").toString())
-        pluginConfig = KRecallPluginConfig(
-            PluginSelector.recommendGetScreenPlugin().pluginId,
-            PluginSelector.recommendStoragePlugin().pluginId,
-            PluginSelector.recommendNaturalLanguageConverterPlugin().pluginId,
-            PluginSelector.recommendScreenLanguageConverterPlugin().pluginId,
-        )
+        val file = File(FileTree.configDir.toString(), "config.json")
+        config = newConfig
         file.writeText(ojson.encodeToString(newConfig))
         reloadKRecallConfig()
     }

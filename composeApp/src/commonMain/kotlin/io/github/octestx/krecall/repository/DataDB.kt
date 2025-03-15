@@ -14,6 +14,7 @@ object DataDB {
 
     fun init(dbFile: Path) {
         driver = JdbcSqliteDriver("jdbc:sqlite:${dbFile.toString().apply { ologger.info("loadSql: $this") }}")
+
         driver.execute(null, "CREATE TABLE IF NOT EXISTS DataItem (timestamp INTEGER NOT NULL PRIMARY KEY, data TEXT DEFAULT NULL, processed INTEGER NOT NULL DEFAULT 0, mark TEXT DEFAULT NULL);", 0)
         ologger.info("Table DataItem created or verified.")
         dataDBQueries = DataDBQueries(driver)
