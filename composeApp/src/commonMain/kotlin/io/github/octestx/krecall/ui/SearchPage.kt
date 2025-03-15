@@ -27,14 +27,9 @@ import io.github.octestx.krecall.model.ImageState
 import io.github.octestx.krecall.plugins.PluginManager
 import io.github.octestx.krecall.repository.DataDB
 import io.klogging.noCoLogger
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 import models.sqld.DataItem
-import okio.withLock
 import ui.core.AbsUIPage
-import java.util.concurrent.locks.ReentrantLock
 
 class SearchPage(model: SearchPageModel): AbsUIPage<Any?, SearchPage.SearchPageState, SearchPage.SearchPageAction>(model) {
     private val ologger = noCoLogger<SearchPage>()
@@ -42,7 +37,11 @@ class SearchPage(model: SearchPageModel): AbsUIPage<Any?, SearchPage.SearchPageS
     override fun UI(state: SearchPageState) {
         Column {
             Column {
-                AnimatedVisibility(state.searchResult.isNotEmpty()) {
+                // ✅ 使用派生状态优化条件判断
+                val showResultCount by remember {
+                    derivedStateOf { state.searchResult.isNotEmpty() }
+                }
+                AnimatedVisibility(showResultCount) {
                     Text("Search result: ${state.searchResult.size}")
                 }
                 Row {
@@ -100,12 +99,12 @@ class SearchPage(model: SearchPageModel): AbsUIPage<Any?, SearchPage.SearchPageS
             }
             Box {
                 LazyVerticalGrid(GridCells.FixedSize(100.dp), state = state.lazyGridState) {
-                    items(state.searchResult, key = { it.timestamp }) { item ->
+                    items(state.searchResult, key = { it.timestamp }, contentType = { "DataItem" }) { item ->
                         Card(Modifier.padding(6.dp).clickable {
                             state.action(SearchPageAction.JumpView(item))
                         }) {
                             val timestamp = item.timestamp
-                            var imgState: ImageState by rememberSaveable { mutableStateOf(ImageState.Loading) }
+                            var imgState: ImageState by rememberSaveable(timestamp) { mutableStateOf(ImageState.Loading) }
                             when (imgState) {
                                 ImageState.Error -> {
                                     Text("ERROR!")
@@ -118,6 +117,9 @@ class SearchPage(model: SearchPageModel): AbsUIPage<Any?, SearchPage.SearchPageS
                                 }
                             }
                             LaunchedEffect(timestamp) {
+                                if (imgState is ImageState.Success) {
+                                    return@LaunchedEffect
+                                }
                                 if (GlobalRecalling.imageCache.containsKey(timestamp)) {
                                     imgState = ImageState.Success(GlobalRecalling.imageCache[timestamp]!!)
                                     return@LaunchedEffect
@@ -140,7 +142,12 @@ class SearchPage(model: SearchPageModel): AbsUIPage<Any?, SearchPage.SearchPageS
                                     ImageState.Error
                                 }
                             }
-                            Text(text = item.data_?:"NULL", maxLines = 3)
+
+                            // ✅ 使用派生状态减少文本计算
+                            val displayText by remember(item.data_) {
+                                derivedStateOf { item.data_?.take(150) ?: "NULL" }
+                            }
+                            Text(text = displayText, maxLines = 3)
                         }
                     }
                 }
@@ -172,6 +179,7 @@ class SearchPage(model: SearchPageModel): AbsUIPage<Any?, SearchPage.SearchPageS
 
     class SearchPageModel(private val jumpView: (data: DataItem, search: List<String>) -> Unit): AbsUIModel<Any?, SearchPageState, SearchPageAction>() {
         private val ioscope = CoroutineScope(Dispatchers.IO)
+        private lateinit var uiscope: CoroutineScope
         val ologger = noCoLogger<SearchPageModel>()
         private var _searchText by mutableStateOf("")
         private val _searchResultList = mutableStateListOf<DataItem>()
@@ -180,15 +188,19 @@ class SearchPage(model: SearchPageModel): AbsUIPage<Any?, SearchPage.SearchPageS
 
         @Composable
         override fun CreateState(params: Any?): SearchPageState {
+            uiscope = rememberCoroutineScope()
             return SearchPageState(_searchText, _searchResultList, _lazyGridState, _tags) {
                 actionExecute(params, it)
             }
         }
+        private var changingTextFieldJob: Job? = null
         override fun actionExecute(params: Any?, action: SearchPageAction) {
             when(action) {
                 is SearchPageAction.ChangeSearchText -> {
                     _searchText = action.newText
-                    ioscope.launch {
+                    changingTextFieldJob?.cancel()
+                    changingTextFieldJob = ioscope.launch {
+                        delay(100)
                         search(action.newText, _tags)
                     }
                 }
@@ -223,18 +235,20 @@ class SearchPage(model: SearchPageModel): AbsUIPage<Any?, SearchPage.SearchPageS
                 listOf(text, *tags.toTypedArray())
             }
         }
-        private val searchingLock = ReentrantLock()
+
         private suspend fun search(text: String, tags: List<String>) {
-            searchingLock.withLock {
+            withContext(uiscope.coroutineContext) {
                 _searchResultList.clear()
-                val list = getSearchTags(text, tags)
-                if (list.isEmpty()) {
-                    return
-                }
-                ologger.info { "Searching: $list" }
-                _searchResultList.addAll(DataDB.searchDataInAll(list))
-                ologger.info { "Searched: ${_searchResultList.size}" }
             }
+            val list = getSearchTags(text, tags)
+            if (list.isEmpty()) {
+                return
+            }
+            ologger.info { "Searching: $list" }
+            withContext(uiscope.coroutineContext) {
+                _searchResultList.addAll(DataDB.searchDataInAll(list))
+            }
+            ologger.info { "Searched: ${_searchResultList.size}" }
         }
     }
 }
