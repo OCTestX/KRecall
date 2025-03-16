@@ -73,8 +73,23 @@ fun TimestampRateController(
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
             )
             IconButton(onClick = {
-                changeIndex(currentIndex - 1)
-            }) {
+                val newIndex = currentIndex - 50
+                if (newIndex >= 0) {
+                    changeIndex(newIndex)
+                }
+            }, enabled = currentIndex - 50 >= 0) {
+                Icon(
+                    imageVector = TablerIcons.ArrowLeft,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.secondary
+                )
+            }
+            IconButton(onClick = {
+                val newIndex = currentIndex - 1
+                if (newIndex >= 0) {
+                    changeIndex(newIndex)
+                }
+            }, enabled = currentIndex - 1 >= 0) {
                 Icon(
                     imageVector = TablerIcons.ArrowLeft,
                     contentDescription = null,
@@ -82,12 +97,27 @@ fun TimestampRateController(
                 )
             }
             IconButton(onClick = {
-                changeIndex(currentIndex + 1)
-            }) {
+                val newIndex = currentIndex + 1
+                if (newIndex <= timestamps.lastIndex) {
+                    changeIndex(newIndex)
+                }
+            }, enabled = currentIndex + 1 <= timestamps.lastIndex) {
                 Icon(
                     imageVector = TablerIcons.ArrowRight,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
+                )
+            }
+            IconButton(onClick = {
+                val newIndex = currentIndex + 100
+                if (newIndex <= timestamps.lastIndex) {
+                    changeIndex(newIndex)
+                }
+            }, enabled = currentIndex + 100 <= timestamps.lastIndex) {
+                Icon(
+                    imageVector = TablerIcons.ArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.secondary
                 )
             }
         }

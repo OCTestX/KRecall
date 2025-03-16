@@ -59,7 +59,7 @@ object ConfigManager {
     }
     @Synchronized
     fun savePluginConfig(newConfig: KRecallPluginConfig) {
-        val file = File(FileTree.pluginData("KRecall").toString())
+        val file = File(FileTree.configDir.toString(), "configPlugin.json")
         pluginConfig = newConfig
         file.writeText(ojson.encodeToString(pluginConfig))
     }

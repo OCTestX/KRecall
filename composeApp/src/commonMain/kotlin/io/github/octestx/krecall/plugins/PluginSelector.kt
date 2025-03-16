@@ -5,6 +5,8 @@ import io.github.octestx.krecall.plugins.basic.AbsGetScreenPlugin
 import io.github.octestx.krecall.plugins.basic.AbsNaturalLanguageConverterPlugin
 import io.github.octestx.krecall.plugins.basic.AbsScreenLanguageConverterPlugin
 import io.github.octestx.krecall.plugins.basic.AbsStoragePlugin
+import io.github.octestx.krecall.plugins.impl.getscreen.GetScreenByAwtRobotPlugin
+import io.github.octestx.krecall.plugins.impl.getscreen.GetScreenByWinPowerShellPlugin
 import io.github.octestx.krecall.plugins.impl.getscreen.GetScreenByKDESpectaclePlugin
 import io.github.octestx.krecall.plugins.impl.naturallanguage.NaturalLanguageConverterByKimiPlugin
 import io.github.octestx.krecall.plugins.impl.screenlanguage.ScreenLanguageConverterByZhiPuPlugin
@@ -33,9 +35,11 @@ object PluginSelector {
     //TODO Support more plugin
     val plugins = mapOf(
         "GetScreenByKDESpectaclePlugin" to GetScreenByKDESpectaclePlugin(),
+        "GetScreenByAwtRobotPlugin" to GetScreenByAwtRobotPlugin(),
+        "GetScreenByWinPowerShellPlugin" to GetScreenByWinPowerShellPlugin(),
         "NaturalLanguageConverterByKimiPlugin" to NaturalLanguageConverterByKimiPlugin(),
         "ScreenLanguageConverterByKimiPlugin" to ScreenLanguageConverterByZhiPuPlugin(),
-        "OTStoragePlugin" to OTStoragePlugin()
+        "OTStoragePlugin" to OTStoragePlugin(),
     )
     fun getScreenPlugin(id: String): Result<AbsGetScreenPlugin> = kotlin.runCatching {
         plugins[id] as AbsGetScreenPlugin

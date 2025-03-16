@@ -1,5 +1,6 @@
 package io.github.octestx.krecall
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Tab
@@ -14,11 +15,9 @@ import coil3.memory.MemoryCache
 import coil3.request.crossfade
 import io.github.kotlin.fibonacci.ui.BasicMUIWrapper
 import io.github.octestx.krecall.repository.ConfigManager
-import io.github.octestx.krecall.ui.HomePage
-import io.github.octestx.krecall.ui.PluginConfigPage
-import io.github.octestx.krecall.ui.SearchPage
-import io.github.octestx.krecall.ui.TimestampViewPage
+import io.github.octestx.krecall.ui.*
 import io.github.octestx.krecall.ui.tour.LoadingPage
+import io.github.octestx.krecall.ui.tour.PluginConfigPage
 import io.github.octestx.krecall.ui.tour.RecallSettingPage
 import io.github.octestx.krecall.ui.tour.WelcomePage
 import io.klogging.noCoLogger
@@ -144,6 +143,20 @@ fun App() {
                             ) {
                                 Text("Search")
                             }
+                            val count = GlobalRecalling.errorTimestampCount.collectAsState().value
+                            Tab(
+                                selected = currentTabIndex == 2,
+                                onClick = { currentTabIndex = 2 },
+                                enabled = count > 0
+                            ) {
+                                AnimatedContent(count) {
+                                    if (count > 0) {
+                                        Text("ViewProcessFails: $it")
+                                    } else {
+                                        Text("No ViewProcessFails")
+                                    }
+                                }
+                            }
                         }
                         val homeModel = rememberSaveable() { HomePage.HomePageModel() }
                         val homePage = rememberSaveable() { HomePage(homeModel) }
@@ -156,6 +169,15 @@ fun App() {
                             navigator.navigate("/timestampViewPage?modelDataId=$modelDataId")
                         }) }
                         val searchPage = rememberSaveable() { SearchPage(searchModel) }
+
+                        val viewProcessFailsModel = rememberSaveable() { ViewProcessFailsPage.ViewProcessFailsPageModel(jumpView = { data, search ->
+                            val modelData = TimestampViewPage.TimestampViewPageModelData(data, search)
+                            val modelDataId = UUID.randomUUID().toString()
+                            navDataExchangeCache[modelDataId] = modelData
+                            ologger.info { "SendModelDataId: $modelDataId" }
+                            navigator.navigate("/timestampViewPage?modelDataId=$modelDataId")
+                        }) }
+                        val viewProcessFailsPage = rememberSaveable() { ViewProcessFailsPage(viewProcessFailsModel) }
                         // 内容区域
                         when (currentTabIndex) {
                             0 -> {
@@ -163,6 +185,9 @@ fun App() {
                             }
                             1 -> {
                                 searchPage.Main(Unit)
+                            }
+                            2 -> {
+                                viewProcessFailsPage.Main(Unit)
                             }
                         }
                     }

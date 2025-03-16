@@ -1,0 +1,107 @@
+package io.github.octestx.krecall.plugins.impl.getscreen
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.painter.Painter
+import io.github.octestx.krecall.plugins.basic.AbsGetScreenPlugin
+import io.klogging.noCoLogger
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.decodeToImageBitmap
+import java.awt.Dimension
+import java.awt.Rectangle
+import java.awt.Robot
+import java.awt.Toolkit
+import java.io.File
+import java.io.FileNotFoundException
+import java.io.OutputStream
+import javax.imageio.ImageIO
+
+
+class GetScreenByAwtRobotPlugin: AbsGetScreenPlugin(pluginId = "GetScreenByAwtRobotPlugin") {
+    private val ologger = noCoLogger<GetScreenByAwtRobotPlugin>()
+    override suspend fun supportOutputToStream(): Boolean = false
+
+    override suspend fun getScreen(outputStream: OutputStream) {
+        throw UnsupportedOperationException()
+    }
+    private lateinit var robot: Robot
+    private lateinit var screenRectangle: Rectangle
+
+    override suspend fun getScreen(outputFileBitItNotExits: File) {
+        withContext(Dispatchers.IO) {
+            val screenshot = robot.createScreenCapture(screenRectangle)
+            ImageIO.write(screenshot, "png",  outputFileBitItNotExits);
+        }
+    }
+
+    override fun load() {
+        robot = Robot()
+        val screenSize: Dimension = Toolkit.getDefaultToolkit().screenSize
+        screenRectangle = Rectangle(screenSize)
+        ologger.info { "Loaded" }
+    }
+
+    override fun unload() {}
+
+    @OptIn(ExperimentalResourceApi::class)
+    @Composable
+    override fun UI() {
+        val scope = rememberCoroutineScope()
+        var painter: Painter? by remember { mutableStateOf(null) }
+        Column {
+            Button(onClick = {
+                scope.launch {
+                    val f = test()
+                    val img = f.inputStream().readAllBytes().decodeToImageBitmap()
+                    painter = BitmapPainter(img)
+                    ologger.info("Test: ${f.absolutePath}")
+                }
+            }) {
+                Text("Test")
+            }
+            painter?.let { Image(it, contentDescription = null) }
+        }
+    }
+
+    private suspend fun test(): File {
+        val f = File(pluginDir, "test.png")
+        getScreen(f)
+        if (!f.exists()) {
+            throw FileNotFoundException("testFile not found")
+        }
+        ologger.info("Test: ${f.absolutePath}")
+        return f
+    }
+
+
+    override fun tryInitInner(): InitResult {
+        ologger.info { "TryInit" }
+        val e = runBlocking {
+            try {
+                test()
+                null
+            } catch (e: Exception) {
+                e
+            }
+        }
+        if (e == null) {
+            _initialized.value = true
+            return InitResult.Success
+        } else {
+            return InitResult.Failed(e)
+        }
+    }
+
+    private val _initialized = MutableStateFlow(false)
+    override val initialized: StateFlow<Boolean> = _initialized
+}

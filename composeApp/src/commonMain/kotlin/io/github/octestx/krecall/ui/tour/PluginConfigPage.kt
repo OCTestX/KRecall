@@ -1,15 +1,22 @@
-package io.github.octestx.krecall.ui
+package io.github.octestx.krecall.ui.tour
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.VerticalScrollbar
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import io.github.kotlin.fibonacci.ui.toast
 import io.github.octestx.krecall.plugins.PluginManager
@@ -40,17 +47,57 @@ class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPa
                 }
 
             }
-            LazyColumn {
-                item { PluginCard(state.getScreenPlugin, "截屏插件") }
-                item { PluginCard(state.storagePlugin, "存储插件") }
-                item { PluginCard(state.naturalLanguageConverterPlugin, "自然语言转换插件") }
-                item { PluginCard(state.screenLanguageConverterPlugin, "图片转换插件") }
+            Box(Modifier.fillMaxSize()) {
+                val scrollState = rememberLazyListState()
+                LazyColumn(state = scrollState) {
+                    item {
+                        PluginCard(state.getScreenPlugin, state.availableGetScreenPlugins, "截屏插件") {
+                            state.action(PluginConfigAction.SelectGetScreenPlugin(it))
+                        }
+                    }
+                    item {
+                        PluginCard(state.storagePlugin, state.availableStoragePlugins, "存储插件") {
+                            state.action(PluginConfigAction.SelectStoragePlugin(it))
+                        }
+                    }
+                    item {
+                        PluginCard(state.naturalLanguageConverterPlugin, state.availableNaturalLanguageConverterPlugins, "自然语言转换插件") {
+                            state.action(PluginConfigAction.SelectNaturalLanguageConverterPlugin(it))
+                        }
+                    }
+                    item {
+                        PluginCard(state.screenLanguageConverterPlugin, state.availableScreenLanguageConverterPlugins, "图片转换插件") {
+                            state.action(PluginConfigAction.SelectScreenLanguageConverterPlugin(it))
+                        }
+                    }
+                }
+                VerticalScrollbar(
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd) // 右侧对齐
+                        .fillMaxHeight()
+                        .background(Color.LightGray.copy(alpha = 0.5f)), // 半透明背景
+                    adapter = rememberScrollbarAdapter(
+                        scrollState = scrollState,
+                    )
+                )
             }
         }
     }
     @Composable
-    private fun <P: PluginBasic> PluginCard(pluginData: Result<P>, type: String) {
+    private fun <P: PluginBasic> PluginCard(pluginData: Result<P>, availablePlugins: List<P>, type: String, selectedPlugin: (pluginId: String) -> Unit) {
         Column {
+            Row {
+                Text("Available: ")
+                LazyRow {
+                    items(availablePlugins) { plugin ->
+                        Button(onClick = {
+                            selectedPlugin(plugin.pluginId)
+                        }, enabled = (pluginData.getOrNull()?.pluginId ?: System.nanoTime()) != plugin.pluginId) {
+                            Text(plugin.pluginId)
+                        }
+                    }
+                }
+            }
             var err: Throwable? by remember { mutableStateOf(null) }
             pluginData.onFailure {
                 Text("$type: 未加载[${it.message}]", color = MaterialTheme.colorScheme.secondary)
@@ -93,12 +140,20 @@ class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPa
     sealed class PluginConfigAction : AbsUIAction() {
         //只有当插件全部初始化完毕后用户才能主动调用这个事件
         data object ConfigDone: PluginConfigAction()
+        data class SelectGetScreenPlugin(val pluginId: String): PluginConfigAction()
+        data class SelectStoragePlugin(val pluginId: String): PluginConfigAction()
+        data class SelectNaturalLanguageConverterPlugin(val pluginId: String): PluginConfigAction()
+        data class SelectScreenLanguageConverterPlugin(val pluginId: String): PluginConfigAction()
     }
     data class PluginConfigState(
         val getScreenPlugin: Result<AbsGetScreenPlugin>,
+        val availableGetScreenPlugins: List<AbsGetScreenPlugin>,
         val storagePlugin: Result<AbsStoragePlugin>,
+        val availableStoragePlugins: List<AbsStoragePlugin>,
         val naturalLanguageConverterPlugin: Result<AbsNaturalLanguageConverterPlugin>,
+        val availableNaturalLanguageConverterPlugins: List<AbsNaturalLanguageConverterPlugin>,
         val screenLanguageConverterPlugin: Result<AbsScreenLanguageConverterPlugin>,
+        val availableScreenLanguageConverterPlugins: List<AbsScreenLanguageConverterPlugin>,
         val action: (PluginConfigAction) -> Unit,
     ): AbsUIState<PluginConfigAction>()
 
@@ -108,9 +163,13 @@ class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPa
         override fun CreateState(params: Any?): PluginConfigState {
             return PluginConfigState(
                 PluginManager.getScreenPlugin(),
+                PluginManager.availableScreenPlugins.values.toList(),
                 PluginManager.getStoragePlugin(),
+                PluginManager.availableStoragePlugins.values.toList(),
                 PluginManager.getNaturalLanguageConverterPlugin(),
+                PluginManager.availableNaturalLanguageConverterPlugins.values.toList(),
                 PluginManager.getScreenLanguageConverterPlugin(),
+                PluginManager.availableScreenLanguageConverterPlugins.values.toList(),
             ) {
                 actionExecute(params, it)
             }
@@ -131,6 +190,20 @@ class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPa
                         toast.applyShow("TODO, ConfigDone")
                     }
                     configDone()
+                }
+
+                is PluginConfigAction.SelectGetScreenPlugin -> {
+                    PluginManager.setScreenPlugin(action.pluginId)
+                }
+
+                is PluginConfigAction.SelectNaturalLanguageConverterPlugin -> {
+                    PluginManager.setNaturalLanguageConverterPlugin(action.pluginId)
+                }
+                is PluginConfigAction.SelectScreenLanguageConverterPlugin -> {
+                    PluginManager.setScreenLanguageConverterPlugin(action.pluginId)
+                }
+                is PluginConfigAction.SelectStoragePlugin -> {
+                    PluginManager.setStoragePlugin(action.pluginId)
                 }
             }
         }

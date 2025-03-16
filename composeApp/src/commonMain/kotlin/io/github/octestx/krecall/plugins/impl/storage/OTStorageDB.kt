@@ -17,6 +17,7 @@ object OTStorageDB {
         driver = JdbcSqliteDriver("jdbc:sqlite:${dbFile.toString().apply {
             ologger.info("Initializing OTStorageDB: $this")
         }}")
+        //TODO 手动建表
         driver.execute(null, """
             CREATE TABLE IF NOT EXISTS OTStorageDBItem (
                 timestamp INTEGER NOT NULL PRIMARY KEY,

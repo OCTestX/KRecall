@@ -2,6 +2,9 @@ package io.github.octestx.krecall.repository
 
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import io.github.kotlin.fibonacci.utils.ojson
+import io.github.octestx.krecall.plugins.basic.AIResult
+import io.github.octestx.krecall.plugins.basic.exceptionSerializableOjson
 import io.klogging.noCoLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -17,7 +20,21 @@ object DataDB {
     fun init(dbFile: Path) {
         driver = JdbcSqliteDriver("jdbc:sqlite:${dbFile.toString().apply { ologger.info("loadSql: $this") }}")
 
-        driver.execute(null, "CREATE TABLE IF NOT EXISTS DataItem (timestamp INTEGER NOT NULL PRIMARY KEY, data TEXT DEFAULT NULL, processed INTEGER NOT NULL DEFAULT 0, mark TEXT DEFAULT NULL);", 0)
+        //TODO 手动建表
+        driver.execute(
+            null, """
+                CREATE TABLE IF NOT EXISTS "DataItem" (
+                	"screenId"	INTEGER NOT NULL DEFAULT 0,
+                	"timestamp"	INTEGER NOT NULL,
+                	"data"	TEXT DEFAULT NULL,
+                	"status"	INTEGER NOT NULL DEFAULT 0,
+                	"error"	TEXT DEFAULT NULL,
+                	"ocr"	TEXT DEFAULT NULL,
+                	"mark"	TEXT DEFAULT NULL,
+                	PRIMARY KEY("timestamp")
+                );
+            """.trimIndent(), 0
+        )
         ologger.info("Table DataItem created or verified.")
         dataDBQueries = DataDBQueries(driver)
     }
@@ -90,8 +107,8 @@ object DataDB {
         return dataDBQueries.listTimestampWithNotMark(mark).executeAsList()
     }
 
-    fun happenError(timestamp: Long, error: Exception) {
-        dataDBQueries.happenError("${error.message}\n${error.stackTraceToString()}", timestamp)
+    fun happenError(timestamp: Long, error: AIResult.Failed<String>) {
+        dataDBQueries.happenError(exceptionSerializableOjson.encodeToString(error), timestamp)
     }
 
     fun appendOCRData(timestamp: Long, data: String) {

@@ -11,6 +11,8 @@ import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import com.aallam.openai.api.chat.*
+import com.aallam.openai.api.exception.InvalidRequestException
+import com.aallam.openai.api.exception.OpenAIErrorDetails
 import com.aallam.openai.api.model.Model
 import com.aallam.openai.api.model.ModelId
 import com.aallam.openai.client.OpenAI
@@ -29,6 +31,8 @@ import io.github.octestx.krecall.plugins.basic.AbsScreenLanguageConverterPlugin
 import io.github.octestx.krecall.plugins.impl.storage.OTStoragePlugin
 import io.github.octestx.krecall.repository.DataDB
 import io.klogging.noCoLogger
+import io.ktor.client.plugins.*
+import io.ktor.client.statement.*
 import io.ktor.util.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -108,12 +112,17 @@ class ScreenLanguageConverterByZhiPuPlugin: AbsScreenLanguageConverterPlugin("Sc
             frequencyPenalty = config.frequencyPenalty,
         )
         ologger.info { "ConvertingData..." }
-        val completion: ChatCompletion = openAI.chatCompletion(chatCompletionRequest)
         try {
+            val completion: ChatCompletion = openAI.chatCompletion(chatCompletionRequest)
             val msg = completion.choices[0].message.content!!
             ologger.info { "ConvertedData: $msg" }
             return AIResult.Success(msg)
         } catch (e: Exception) {
+            if (e is InvalidRequestException) {
+                val detail = e.error.detail
+                ologger.error(e) { "InvalidRequestException: [detail=$detail]" }
+                return AIResult.Failed(e, getErrorTypeByZhiPuAI(detail))
+            }
             //TODO 错误类型分类
             ologger.error(e) { "ConvertDataError: ${e.message}" }
             return AIResult.Failed(e, AIErrorType.UNKNOWN)
@@ -252,4 +261,40 @@ class ScreenLanguageConverterByZhiPuPlugin: AbsScreenLanguageConverterPlugin("Sc
 
     private val _initialized = MutableStateFlow(false)
     override val initialized: StateFlow<Boolean> = _initialized
+
+
+    private fun getErrorTypeByZhiPuAI(details: OpenAIErrorDetails?): AIErrorType {
+        if (details == null) return AIErrorType.UNKNOWN
+        //look url: https://www.bigmodel.cn/dev/api/error-code/service-error
+        return when (details.code) {
+            // 1000系列（API密钥相关）
+            "1000" -> AIErrorType.INVALID_API_KEY    // 原第5位
+            "1001" -> AIErrorType.INVALID_API_KEY    // 原第4位
+            "1002" -> AIErrorType.INVALID_API_KEY    // 原第3位
+            "1003" -> AIErrorType.INVALID_API_KEY    // 原第2位
+            "1004" -> AIErrorType.INVALID_API_KEY    // 原第1位
+
+            // 1110-1120系列（API密钥/配额）
+            "1110" -> AIErrorType.INVALID_API_KEY    // 原第9位
+            "1111" -> AIErrorType.INVALID_API_KEY    // 原第8位
+            "1112" -> AIErrorType.INVALID_API_KEY    // 原第7位
+            "1113" -> AIErrorType.API_QUOTA_EXHAUSTED// 原第10位
+            "1120" -> AIErrorType.INVALID_API_KEY    // 原第6位
+
+            // 1200系列（模型相关）
+            "1211" -> AIErrorType.INVALID_MODEL      // 原第11位
+            "1220" -> AIErrorType.INVALID_MODEL      // 原第12位
+            "1221" -> AIErrorType.INVALID_MODEL      // 原第13位
+            "1222" -> AIErrorType.INVALID_MODEL      // 原第14位
+            "1261" -> AIErrorType.API_QUOTA_EXHAUSTED// 原第15位
+
+            // 1300系列（请求相关）
+            "1300" -> AIErrorType.REQUEST_INTERRUPTED// 原第16位
+            "1301" -> AIErrorType.SENSITIVE_INFO     // 原第17位
+            "1302" -> AIErrorType.API_RATE_LIMIT_CONCURRENCY// 原第18位
+            "1304" -> AIErrorType.API_RATE_LIMIT_TOKEN// 原第19位
+            "1305" -> AIErrorType.API_RATE_LIMIT_CONCURRENCY// 原第20位
+            else -> AIErrorType.UNKNOWN
+        }
+    }
 }

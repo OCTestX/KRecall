@@ -1,6 +1,4 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
-import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -51,10 +49,15 @@ kotlin {
             implementation("com.aallam.openai:openai-client:4.0.0")
             implementation("cn.bigmodel.openapi:oapi-java-sdk:release-V4-2.3.0")
 
-            implementation("org.apache.commons:commons-math3:3.6.1")
+            implementation("org.openpnp:opencv:4.9.0-0")
 
             implementation("io.coil-kt.coil3:coil-compose:3.1.0")
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.1")
+
+            implementation("io.github.vinceglb:filekit-core:0.10.0-beta01")
+            implementation("io.github.vinceglb:filekit-dialogs:0.10.0-beta01")
+            implementation("io.github.vinceglb:filekit-dialogs-compose:0.10.0-beta01")
+            implementation("io.github.vinceglb:filekit-coil:0.10.0-beta01")
         }
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)

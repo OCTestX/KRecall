@@ -4,10 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import io.github.kotlin.fibonacci.utils.linkFile
@@ -38,7 +35,8 @@ class OTStoragePlugin: AbsStoragePlugin(pluginId = "OTStoragePlugin") {
     @Serializable
     data class StorageConfig(
         val filePath: String,
-        val limitStorage: Long
+        val limitStorage: Long,
+        val imageSimilarityLimit: Float,
     )
     override suspend fun requireOutputStream(timestamp: Long): OutputStream = requireFileBitItNotExits(timestamp).apply { createNewFile() }.outputStream()
     private fun getFile(fileTimestamp: Long): File {
@@ -75,20 +73,24 @@ class OTStoragePlugin: AbsStoragePlugin(pluginId = "OTStoragePlugin") {
                 ologger.info { "已清理$countSpace Bytes空间" }
             }
         }
-//        val previousFileTimestamp = OTStorageDB.getPreviousData(timestamp)?.fileTimestamp
-//        if (previousFileTimestamp != null) {
-//            val currentImg = getScreenDataByFileTimestamp(timestamp).getOrNull()
-//            val previousImg = getScreenDataByFileTimestamp(previousFileTimestamp).getOrNull()
-//            if (currentImg != null && previousImg != null) {
-//                // TODO 完全不可用
-//                val factor = ImageUtils.calculateImageSimilarity(currentImg, previousImg)
-//                if (factor > 0.9) {
+        val previousFileTimestamp = OTStorageDB.getPreviousData(timestamp)?.fileTimestamp
+        if (previousFileTimestamp != null) {
+            val currentImg = getScreenDataByFileTimestamp(timestamp).getOrNull()
+            val previousImg = getScreenDataByFileTimestamp(previousFileTimestamp).getOrNull()
+            if (currentImg != null && previousImg != null) {
+                val similarity = ImageUtils.calculateImageSimilarityCV(currentImg, previousImg)
+                ologger.info { "图片相似度检测结果: $similarity (${timestamp} vs ${previousFileTimestamp})" }
+
+                if (similarity > config.imageSimilarityLimit) {
+                    //TODO 相似度算法残废
+//                    // 更新索引并删除当前文件
 //                    OTStorageDB.setFileTimestamp(timestamp, previousFileTimestamp)
 //                    getFile(timestamp).delete()
-//                    ologger.info { "相似度大于0.9，不保存[$timestamp -> $previousFileTimestamp]" }
-//                }
-//            }
-//        }
+                    ologger.info { "相似度${"%.2f".format(similarity*100)}% 超过阈值，已复用历史图片{并没有}" }
+                    return
+                }
+            }
+        }
         //TODO 图片优化存储
     }
 
@@ -117,7 +119,8 @@ class OTStoragePlugin: AbsStoragePlugin(pluginId = "OTStoragePlugin") {
             configFile.renameTo(File(configFile.parentFile, "config.json.old"))
             config = StorageConfig(
                 filePath = "",
-                limitStorage = 20L * 1024 * 1024 * 1024
+                limitStorage = 20L * 1024 * 1024 * 1024,
+                0.95f,
             )
             configFile.writeText(ojson.encodeToString(config))
         }
@@ -137,8 +140,7 @@ class OTStoragePlugin: AbsStoragePlugin(pluginId = "OTStoragePlugin") {
             var filePath by remember { mutableStateOf(config.filePath ?: "") }
             TextField(filePath, {
                 filePath = it
-                savedConfig.value = false
-                _initialized.value = false
+                configDataChange()
             }, label = {
                 Text("文件存储路径，为空则默认")
             })
@@ -147,14 +149,19 @@ class OTStoragePlugin: AbsStoragePlugin(pluginId = "OTStoragePlugin") {
             Row {
                 TextField(limitStorage, {
                     limitStorage = it
-                    savedConfig.value = false
-                    _initialized.value = false
+                    configDataChange()
                 }, label = {
                     val text = if (num == null) "只能输入数字!" else "$num GB"
                     Text("存储限制[$text]")
                 })
                 Text("GB")
             }
+            var imageSimilarityLimit by remember { mutableStateOf(config.imageSimilarityLimit) }
+            Text("drop similarity more that: ${imageSimilarityLimit * 100} % Image")
+            Slider(imageSimilarityLimit, {
+                imageSimilarityLimit = it
+                configDataChange()
+            })
             var saveText = "Save"
             Button(onClick = {
                 try {
@@ -164,7 +171,7 @@ class OTStoragePlugin: AbsStoragePlugin(pluginId = "OTStoragePlugin") {
                         File(filePath).apply { mkdirs() }.exists()
                     }
                     if (num != null && checkedDir) {
-                        val newConfig = StorageConfig(filePath, num * (1024L * 1024 * 1024))
+                        val newConfig = StorageConfig(filePath, num * (1024L * 1024 * 1024), imageSimilarityLimit)
                         configFile.writeText(ojson.encodeToString(newConfig))
                         config = newConfig
                         scope.launch {
@@ -198,4 +205,9 @@ class OTStoragePlugin: AbsStoragePlugin(pluginId = "OTStoragePlugin") {
 
     private val _initialized = MutableStateFlow(false)
     override val initialized: StateFlow<Boolean> = _initialized
+
+    private fun configDataChange() {
+        savedConfig.value = false
+        _initialized.value = false
+    }
 }

@@ -28,21 +28,8 @@ class HomePage(model: HomePageModel): AbsUIPage<Any?, HomePage.HomePageState, Ho
     @Composable
     override fun UI(state: HomePageState) {
         Column {
-            val collectingScreenDelay by GlobalRecalling.collectingDelay.collectAsState()
-            LinearProgressIndicator( progress = { (collectingScreenDelay.toDouble() / ConfigManager.config.collectScreenDelay).toFloat() })
-            Row() {
-                val collectingScreen by GlobalRecalling.collectingScreen.collectAsState()
-                Text("CollectingScreen[${"%.1f".format(collectingScreenDelay.toDouble() / 1000)}s]")
-                Switch(collectingScreen, { state.action(HomePageAction.ChangeCollectingScreen(!collectingScreen)) })
-            }
-            Row {
-                val processingData by GlobalRecalling.processingData.collectAsState()
-                Text("ProcessingData[${GlobalRecalling.processingDataList.count.collectAsState().value}]")
-                Switch(processingData, { state.action(HomePageAction.ChangeProcessingData(!processingData)) })
-                if (processingData) {
-                    CircularProgressIndicator()
-                }
-            }
+            CaptureScreenController(state)
+            ProcessImageController(state)
             Row {
                 Text("theNowMode")
                 Switch(state.theNowMode, { state.action(HomePageAction.ChangeTheNowMode(!state.theNowMode)) })
@@ -68,6 +55,36 @@ class HomePage(model: HomePageModel): AbsUIPage<Any?, HomePage.HomePageState, Ho
             }
         }
     }
+
+    @Composable
+    private fun CaptureScreenController(state: HomePageState) {
+        val collectingScreenDelay by GlobalRecalling.collectingDelay.collectAsState()
+        LinearProgressIndicator( progress = { (collectingScreenDelay.toDouble() / ConfigManager.config.collectScreenDelay).toFloat() })
+        Row() {
+            val collectingScreen by GlobalRecalling.collectingScreen.collectAsState()
+            Text("CollectingScreen[${"%.1f".format(collectingScreenDelay.toDouble() / 1000)}s]")
+            Switch(collectingScreen, { state.action(HomePageAction.ChangeCollectingScreen(!collectingScreen)) })
+        }
+    }
+
+    @Composable
+    private fun ProcessImageController(state: HomePageState) {
+        Row {
+            val processingData by GlobalRecalling.processingData.collectAsState()
+            val processingDataCount = GlobalRecalling.processingDataList.count.collectAsState().value
+            val text = if (processingDataCount > 0 ) {
+                "ProcessingData[$processingDataCount]"
+            } else {
+                "ProcessingData"
+            }
+            Text(text)
+            Switch(processingData, { state.action(HomePageAction.ChangeProcessingData(!processingData)) })
+            if (processingData) {
+                CircularProgressIndicator()
+            }
+        }
+    }
+
     sealed class HomePageAction : AbsUIAction() {
         data class ChangeCollectingScreen(val collectingScreen: Boolean): HomePageAction()
         data class ChangeProcessingData(val processingData: Boolean): HomePageAction()
@@ -86,7 +103,7 @@ class HomePage(model: HomePageModel): AbsUIPage<Any?, HomePage.HomePageState, Ho
     class HomePageModel: AbsUIModel<Any?, HomePageState, HomePageAction>() {
         val ologger = noCoLogger<HomePageModel>()
 
-        private var _theNowMode by mutableStateOf(false)
+        private var _theNowMode by mutableStateOf(true)
         private val _scrollState = ScrollState(0)
         private var _selectedTimestampIndex by mutableStateOf(GlobalRecalling.allTimestamp.lastIndex)
         private var _currentImagePainter: Painter? by mutableStateOf(null)

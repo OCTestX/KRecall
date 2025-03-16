@@ -1,12 +1,16 @@
 package io.github.octestx.krecall.ui
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.padding
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.VerticalScrollbar
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -18,10 +22,16 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import compose.icons.TablerIcons
 import compose.icons.tablericons.ArrowBack
+import compose.icons.tablericons.Download
 import io.github.octestx.krecall.GlobalRecalling
 import io.github.octestx.krecall.model.ImageState
 import io.github.octestx.krecall.plugins.PluginManager
+import io.github.octestx.krecall.plugins.basic.AIResult
+import io.github.octestx.krecall.plugins.basic.exceptionSerializableOjson
+import io.github.vinceglb.filekit.dialogs.compose.rememberFileSaverLauncher
+import io.github.vinceglb.filekit.write
 import io.klogging.noCoLogger
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import models.sqld.DataItem
 import ui.core.AbsUIPage
@@ -41,25 +51,71 @@ class TimestampViewPage(private val model: TimestampViewPageModel): AbsUIPage<An
                     Icon(TablerIcons.ArrowBack, null)
                 }
             })
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                when (state.imageState) {
-                    ImageState.Error -> {
-                        Text("ERROR!")
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+//                    .pointerInput(Unit) {
+//                        detectTapGestures(
+//                            onPress = { /* 处理按压 */ },
+//                            onDoubleTap = { /* 处理双击 */ }
+//                        )
+//                    }
+            ) {
+                val scrollState = rememberScrollState()
+                Column(modifier = Modifier.verticalScroll(scrollState)) {
+                    when (state.imageState) {
+                        ImageState.Error -> {
+                            Text("ERROR!")
+                        }
+                        ImageState.Loading -> {
+                            CircularProgressIndicator()
+                        }
+                        is ImageState.Success -> {
+                            AsyncImage(state.imageState.bytes, null, contentScale = ContentScale.FillWidth)
+                            Row {
+                                val launcher = rememberFileSaverLauncher { file ->
+                                    // Write your data to the file
+                                    if (file != null) {
+                                        scope.launch {
+                                            file.write(state.imageState.bytes)
+                                        }
+                                    }
+                                }
+                                IconButton(onClick = {
+                                    launcher.launch("output-KRecallScreen-${state.dataItem.screenId}_${System.nanoTime()}", "png")
+                                }) {
+                                    Icon(TablerIcons.Download, null)
+                                }
+                            }
+                        }
                     }
-                    ImageState.Loading -> {
-                        CircularProgressIndicator()
-                    }
-                    is ImageState.Success -> {
-                        AsyncImage(state.imageState.bytes, null, contentScale = ContentScale.FillWidth)
+                    if (state.dataItem.status == 0L || state.dataItem.status == 1L) {
+                        BasicText(
+                            text = highlightText(
+                                text = state.dataItem.data_ ?: "NULL",
+                                highlights = model.highlightSearchStr
+                            ),
+                            modifier = Modifier.padding(8.dp),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    } else if (state.dataItem.status == 2L) {
+                        val err = exceptionSerializableOjson.decodeFromString<AIResult.Failed<String>>(state.dataItem.error!!)
+                        SelectionContainer {
+                            BasicText(
+                                text = err.toString(),
+                                modifier = Modifier.padding(8.dp),
+                                style = MaterialTheme.typography.bodyMedium.copy(color = Color.Red),
+                            )
+                        }
                     }
                 }
-                BasicText(
-                    text = highlightText(
-                        text = state.dataItem.data_ ?: "NULL",
-                        highlights = model.highlightSearchStr
-                    ),
-                    modifier = Modifier.padding(8.dp),
-                    style = MaterialTheme.typography.bodyMedium
+                VerticalScrollbar(
+                    adapter = rememberScrollbarAdapter(scrollState),
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = 4.dp)
+//                        .alpha(if (isScrollVisible) 1f else 0.5f) // 透明度变化
+                        .animateContentSize() // 尺寸动画
                 )
             }
         }
