@@ -1,4 +1,4 @@
-package io.github.octestx.krecall.plugins.impl.screenlanguage
+package io.github.octestx.krecall.plugins.impl.ocr
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Button

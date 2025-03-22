@@ -1,4 +1,4 @@
-package io.github.octestx.krecall.plugins.impl.getscreen
+package io.github.octestx.krecall.plugins.capturescreen
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
