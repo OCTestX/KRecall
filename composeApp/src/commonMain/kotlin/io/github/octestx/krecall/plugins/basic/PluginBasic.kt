@@ -1,13 +1,19 @@
 package io.github.octestx.krecall.plugins.basic
 
 import androidx.compose.runtime.Composable
+import io.github.kotlin.fibonacci.utils.OS
 import kotlinx.coroutines.flow.StateFlow
 import org.koin.java.KoinJavaComponent.get
 import java.io.File
 
 abstract class PluginBasic(val pluginId: String) {
+    //决定了是否会被load
+    abstract val supportPlatform: Set<OS.OperatingSystem>
+    // 是否需要UI
+    abstract val supportUI: Boolean
     abstract fun load()
-    abstract fun unload()
+    abstract fun selected()
+    abstract fun unselected()
     @Composable
     abstract fun UI()
     protected abstract fun tryInitInner(): InitResult

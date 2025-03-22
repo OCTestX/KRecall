@@ -2,7 +2,6 @@ package io.github.octestx.krecall.repository
 
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
-import io.github.kotlin.fibonacci.utils.ojson
 import io.github.octestx.krecall.plugins.basic.AIResult
 import io.github.octestx.krecall.plugins.basic.exceptionSerializableOjson
 import io.klogging.noCoLogger
@@ -24,14 +23,14 @@ object DataDB {
         driver.execute(
             null, """
                 CREATE TABLE IF NOT EXISTS "DataItem" (
-                	"screenId"	INTEGER NOT NULL DEFAULT 0,
-                	"timestamp"	INTEGER NOT NULL,
-                	"data"	TEXT DEFAULT NULL,
-                	"status"	INTEGER NOT NULL DEFAULT 0,
-                	"error"	TEXT DEFAULT NULL,
-                	"ocr"	TEXT DEFAULT NULL,
-                	"mark"	TEXT DEFAULT NULL,
-                	PRIMARY KEY("timestamp")
+                    "screenId"	INTEGER NOT NULL DEFAULT 0,
+                    "timestamp"	INTEGER NOT NULL,
+                    "data"	TEXT DEFAULT NULL,
+                    "status"	INTEGER NOT NULL DEFAULT 0,
+                    "error"	TEXT DEFAULT NULL,
+                    "ocr"	TEXT DEFAULT NULL,
+                    "mark"	TEXT NOT NULL,
+                    PRIMARY KEY("timestamp")
                 );
             """.trimIndent(), 0
         )
@@ -95,8 +94,17 @@ object DataDB {
         dataDBQueries.processed(timestamp)
     }
 
-    fun markScreenData(timestamp: Long, mark: String) {
-        dataDBQueries.markScreenData(mark, timestamp)
+    fun addMark(timestamp: Long, mark: String) {
+        val data = dataDBQueries.getData(timestamp).executeAsOneOrNull() ?: return
+        val newMark = data.mark + "\n" + mark
+        dataDBQueries.markScreenData(newMark, timestamp)
+    }
+
+    fun removeMark(timestamp: Long, mark: String) {
+        val data = dataDBQueries.getData(timestamp).executeAsOneOrNull() ?: return
+        data.mark.split("\n").filter { it != mark }.joinToString("\n").let {
+            dataDBQueries.markScreenData(it, timestamp)
+        }
     }
 
     fun listTimestampWithMark(mark: String): List<Long> {

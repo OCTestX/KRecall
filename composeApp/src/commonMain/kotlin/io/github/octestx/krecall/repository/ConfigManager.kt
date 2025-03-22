@@ -1,9 +1,7 @@
 package io.github.octestx.krecall.repository
 
 import io.github.kotlin.fibonacci.utils.ojson
-import io.github.octestx.krecall.plugins.PluginSelector
 import io.klogging.noCoLogger
-import kotlinx.io.files.Path
 import kotlinx.serialization.Serializable
 import java.io.File
 
@@ -33,14 +31,16 @@ object ConfigManager {
         reloadKRecallConfig()
     }
     private val DefaultConfig = KRecallConfig(
-        15 * 1000,
-        false
+        collectScreenDelay = 15 * 1000,
+        initialized = false,
+        initPlugin = false
     )
 
     @Serializable
     data class KRecallConfig(
         val collectScreenDelay: Long,//Default 15 * 1000 [15s]
-        val initialized: Boolean
+        val initialized: Boolean,
+        val initPlugin: Boolean,
     )
 
 
@@ -64,18 +64,12 @@ object ConfigManager {
         file.writeText(ojson.encodeToString(pluginConfig))
     }
 
-    private val DefaultPluginConfig = KRecallPluginConfig(
-        PluginSelector.recommendGetScreenPlugin().pluginId,
-        PluginSelector.recommendStoragePlugin().pluginId,
-        PluginSelector.recommendNaturalLanguageConverterPlugin().pluginId,
-        PluginSelector.recommendScreenLanguageConverterPlugin().pluginId,
-    )
+    private val DefaultPluginConfig = KRecallPluginConfig()
 
     @Serializable
     data class KRecallPluginConfig(
-        val getScreenPluginId: String,
-        val storagePluginId: String,
-        val naturalLanguageConverterPluginId: String,
-        val screenLanguageConverterPluginId: String,
+        val captureScreenPluginId: String? = null,
+        val storagePluginId: String? = null,
+        val ocrPluginId: String? = null,
     )
 }

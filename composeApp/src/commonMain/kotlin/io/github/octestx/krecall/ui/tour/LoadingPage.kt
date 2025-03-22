@@ -1,19 +1,15 @@
 package io.github.octestx.krecall.ui.tour
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import io.github.octestx.krecall.plugins.PluginManager
-import io.github.octestx.krecall.plugins.basic.*
 import io.klogging.noCoLogger
 import ui.core.AbsUIPage
 
-class LoadingPage(model: LoadingPageModel): AbsUIPage<Any?, LoadingPage.PluginConfigState, LoadingPage.LoadingPageAction>(model) {
+class LoadingPage(model: LoadingPageModel): AbsUIPage<Any?, LoadingPage.LoadingPageState, LoadingPage.LoadingPageAction>(model) {
     private val ologger = noCoLogger<LoadingPage>()
     @Composable
-    override fun UI(state: PluginConfigState) {
+    override fun UI(state: LoadingPageState) {
         Column {
             CircularProgressIndicator()
         }
@@ -21,15 +17,15 @@ class LoadingPage(model: LoadingPageModel): AbsUIPage<Any?, LoadingPage.PluginCo
 
     sealed class LoadingPageAction : AbsUIAction() {
     }
-    data class PluginConfigState(
+    data class LoadingPageState(
         val action: (LoadingPageAction) -> Unit,
     ): AbsUIState<LoadingPageAction>()
 
-    class LoadingPageModel(): AbsUIModel<Any?, PluginConfigState, LoadingPageAction>() {
+    class LoadingPageModel(): AbsUIModel<Any?, LoadingPageState, LoadingPageAction>() {
         val ologger = noCoLogger<LoadingPageModel>()
         @Composable
-        override fun CreateState(params: Any?): PluginConfigState {
-            return PluginConfigState() {
+        override fun CreateState(params: Any?): LoadingPageState {
+            return LoadingPageState() {
                 actionExecute(params, it)
             }
         }

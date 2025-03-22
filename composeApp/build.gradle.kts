@@ -99,6 +99,13 @@ dependencies {
     debugImplementation(compose.uiTooling)
 }
 
+compose {
+    resources {
+        publicResClass = true
+        generateResClass = always
+    }
+}
+
 compose.desktop {
     application {
         mainClass = "io.github.octestx.krecall.MainKt"

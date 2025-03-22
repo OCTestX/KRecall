@@ -1,38 +1,24 @@
 package io.github.octestx.krecall.plugins.impl.screenlanguage
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
 import com.aallam.openai.api.chat.*
 import com.aallam.openai.api.exception.InvalidRequestException
 import com.aallam.openai.api.exception.OpenAIErrorDetails
-import com.aallam.openai.api.model.Model
 import com.aallam.openai.api.model.ModelId
 import com.aallam.openai.client.OpenAI
 import com.aallam.openai.client.OpenAIHost
-import com.zhipu.oapi.ClientV4
-//import com.zhipu.oapi.Constants
-//import com.zhipu.oapi.service.v4.model.ChatCompletionRequest.builder
-//import com.zhipu.oapi.service.v4.model.ChatMessage
-//import com.zhipu.oapi.service.v4.model.ChatMessageRole
-import com.zhipu.oapi.service.v4.model.ModelApiResponse
+import io.github.kotlin.fibonacci.utils.OS
 import io.github.kotlin.fibonacci.utils.ojson
 import io.github.octestx.krecall.exceptions.ConfigurationNotSavedException
 import io.github.octestx.krecall.plugins.basic.AIErrorType
 import io.github.octestx.krecall.plugins.basic.AIResult
-import io.github.octestx.krecall.plugins.basic.AbsScreenLanguageConverterPlugin
+import io.github.octestx.krecall.plugins.basic.AbsOCRPlugin
 import io.github.octestx.krecall.plugins.impl.storage.OTStoragePlugin
-import io.github.octestx.krecall.repository.DataDB
 import io.klogging.noCoLogger
-import io.ktor.client.plugins.*
-import io.ktor.client.statement.*
 import io.ktor.util.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,10 +26,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import java.io.File
-import java.util.concurrent.TimeUnit
 
 
-class ScreenLanguageConverterByZhiPuPlugin: AbsScreenLanguageConverterPlugin("ScreenLanguageConverterByKimiPlugin") {
+class OCRByZhiPuPlugin: AbsOCRPlugin("ScreenLanguageConverterByKimiPlugin") {
+    override val supportPlatform: Set<OS.OperatingSystem> = setOf(OS.OperatingSystem.WIN, OS.OperatingSystem.LINUX, OS.OperatingSystem.MACOS, OS.OperatingSystem.OTHER)
+    override val supportUI: Boolean = true
     private val ologger = noCoLogger<OTStoragePlugin>()
     private val configFile = File(pluginDir, "config.json")
     @Volatile
@@ -70,7 +57,7 @@ class ScreenLanguageConverterByZhiPuPlugin: AbsScreenLanguageConverterPlugin("Sc
         code.kt
     """.trimIndent()
 
-    override suspend fun convert(screen: ByteArray): AIResult<String> {
+    override suspend fun recognize(screen: ByteArray): AIResult<String> {
         val imgBase64 = screen.encodeBase64()
 //        val messages: MutableList<ChatMessage> = ArrayList()
 //        val contentList: MutableList<Map<String, Any>> = ArrayList()
@@ -122,10 +109,11 @@ class ScreenLanguageConverterByZhiPuPlugin: AbsScreenLanguageConverterPlugin("Sc
                 val detail = e.error.detail
                 ologger.error(e) { "InvalidRequestException: [detail=$detail]" }
                 return AIResult.Failed(e, getErrorTypeByZhiPuAI(detail))
+            } else {
+                //TODO 错误类型分类
+                ologger.error(e) { "ConvertDataError: ${e.message}" }
+                return AIResult.Failed(e, AIErrorType.UNKNOWN)
             }
-            //TODO 错误类型分类
-            ologger.error(e) { "ConvertDataError: ${e.message}" }
-            return AIResult.Failed(e, AIErrorType.UNKNOWN)
         }
     }
 
@@ -151,15 +139,13 @@ class ScreenLanguageConverterByZhiPuPlugin: AbsScreenLanguageConverterPlugin("Sc
         ologger.info { "Loaded" }
     }
 
-    override fun unload() {}
+    override fun selected() {}
+    override fun unselected() {}
     private var savedConfig = MutableStateFlow(true)
     @Composable
     override fun UI() {
         val scope = rememberCoroutineScope()
         Column {
-            if (savedConfig.collectAsState().value.not()) {
-                Text("需要保存", modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.tertiary))
-            }
             var apiKey by remember { mutableStateOf(config.apiKey) }
             TextField(apiKey, {
                 apiKey = it
@@ -241,7 +227,7 @@ class ScreenLanguageConverterByZhiPuPlugin: AbsScreenLanguageConverterPlugin("Sc
                 } catch (e: Throwable) {
                     ologger.error(e)
                 }
-            }) {
+            }, enabled = initialized.value.not()) {
                 Text(saveText)
             }
         }

@@ -1,5 +1,6 @@
 package io.github.octestx.krecall.plugins
 
+import io.github.kotlin.fibonacci.utils.OS
 import io.github.octestx.krecall.plugins.basic.*
 import io.github.octestx.krecall.repository.ConfigManager
 import io.klogging.noCoLogger
@@ -7,115 +8,156 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 
+expect fun getPlatformExtPlugins(): Set<PluginBasic>
+expect fun getPlatformInnerPlugins(): Set<PluginBasic>
+
 object PluginManager {
     private val ologger = noCoLogger<PluginManager>()
 
+    private lateinit var allPlugin: Map<String, PluginBasic>
+
     //TODO: 以后可以添加新插件支持
-    private val _getScreenPlugin: MutableStateFlow<Result<AbsGetScreenPlugin>> = MutableStateFlow(Result.failure(Exception("Plugin not loaded")))
+    private val _captureScreenPlugin: MutableStateFlow<Result<AbsCaptureScreenPlugin>> = MutableStateFlow(Result.failure(Exception("Plugin not loaded")))
+    val captureScreenPlugin: StateFlow<Result<AbsCaptureScreenPlugin>> get() = _captureScreenPlugin
     private val _storagePlugin: MutableStateFlow<Result<AbsStoragePlugin>> = MutableStateFlow(Result.failure(Exception("Plugin not loaded")))
-    private val _naturalLanguageConverterPlugin: MutableStateFlow<Result<AbsNaturalLanguageConverterPlugin>> = MutableStateFlow(Result.failure(Exception("Plugin not loaded")))
-    private val _screenLanguageConverterPlugin: MutableStateFlow<Result<AbsScreenLanguageConverterPlugin>> = MutableStateFlow(Result.failure(Exception("Plugin not loaded")))
+    val storagePlugin: StateFlow<Result<AbsStoragePlugin>> get() = _storagePlugin
+    private val _ocrPlugin: MutableStateFlow<Result<AbsOCRPlugin>> = MutableStateFlow(Result.failure(Exception("Plugin not loaded")))
+    val ocrPlugin: StateFlow<Result<AbsOCRPlugin>> get() = _ocrPlugin
 
     private val _needJumpConfigUI: MutableStateFlow<Boolean> = MutableStateFlow(false)
-
-    val getScreenPlugin: StateFlow<Result<AbsGetScreenPlugin>> get() = _getScreenPlugin
-    val storagePlugin: StateFlow<Result<AbsStoragePlugin>> get() = _storagePlugin
-    val naturalLanguageConverterPlugin: StateFlow<Result<AbsNaturalLanguageConverterPlugin>> get() = _naturalLanguageConverterPlugin
-    val screenLanguageConverterPlugin: StateFlow<Result<AbsScreenLanguageConverterPlugin>> get() = _screenLanguageConverterPlugin
 
     val needJumpConfigUI: StateFlow<Boolean> get() = _needJumpConfigUI
 
     suspend fun init() {
         ologger.info { "InitPlugins" }
-        reloadPlugins()
-        createAllPluginsInitializedFlow()
+        loadPlugins()
+        selectConfigFromConfigFile()
+        createAllPluginsInitializedListenerFlow()
+        saveConfig()
     }
 
-    private fun reloadPlugins() {
-        _getScreenPlugin.value.getOrNull()?.unload()
-        _storagePlugin.value.getOrNull()?.unload()
-        _naturalLanguageConverterPlugin.value.getOrNull()?.unload()
-        _screenLanguageConverterPlugin.value.getOrNull()?.unload()
+    private fun loadPlugins() {
+        val preparePlugins = mutableSetOf<PluginBasic>()
+        preparePlugins.addAll(getPlatformExtPlugins())
+        preparePlugins.addAll(getPlatformInnerPlugins())
+        val plugins = mutableMapOf<String, PluginBasic>()
+        for (plugin in preparePlugins) {
+            if (plugin.supportPlatform.contains(OS.getCurrentOS()).not()) continue
+            plugins[plugin.pluginId] = plugin
+            plugin.load()
+            when(plugin) {
+                is AbsCaptureScreenPlugin -> _availableCaptureScreenPlugins[plugin.pluginId] = plugin
+                is AbsStoragePlugin -> _availableStoragePlugins[plugin.pluginId] = plugin
+                is AbsOCRPlugin -> _availableOCRPlugins[plugin.pluginId] = plugin
+            }
+        }
+        allPlugin = plugins
+    }
+
+    private fun selectConfigFromConfigFile() {
         val config = ConfigManager.pluginConfig
-        val getScreenPlugin = PluginSelector.getScreenPlugin(config.getScreenPluginId)
-        val storagePlugin = PluginSelector.storagePlugin(config.storagePluginId)
-        val naturalLanguageConverterPlugin = PluginSelector.naturalLanguageConverterPlugin(config.naturalLanguageConverterPluginId)
-        val screenLanguageConverterPlugin = PluginSelector.screenLanguageConverterPlugin(config.screenLanguageConverterPluginId)
-        if (getScreenPlugin.isFailure || storagePlugin.isFailure || naturalLanguageConverterPlugin.isFailure || screenLanguageConverterPlugin.isFailure) {
+        val captureScreenPlugin = kotlin.runCatching {
+            val id = config.captureScreenPluginId ?: availableCaptureScreenPlugins.keys.firstOrNull()
+            (availableCaptureScreenPlugins[id]!!).apply { selected() }
+        }
+        val storagePlugin = kotlin.runCatching {
+            val id = config.storagePluginId ?: availableStoragePlugins.keys.firstOrNull()
+            (allPlugin[id]!! as AbsStoragePlugin).apply { selected() }
+        }
+        val ocrPlugin = kotlin.runCatching {
+            val id = config.ocrPluginId ?: availableOCRPlugins.keys.firstOrNull()
+            (allPlugin[id]!! as AbsOCRPlugin).apply { selected() }
+        }
+        if (captureScreenPlugin.isFailure || storagePlugin.isFailure || ocrPlugin.isFailure) {
             val errorMessage = """
-                getScreenPlugin: ${getScreenPlugin.exceptionOrNull()?.message}                storagePlugin: ${storagePlugin.exceptionOrNull()?.message}                naturalLanguageConverterPlugin: ${naturalLanguageConverterPlugin.exceptionOrNull()?.message}                screenLanguageConverterPlugin: ${screenLanguageConverterPlugin.exceptionOrNull()?.message}            """.trimIndent()
+                Plugins not loaded
+                config:
+                    captureScreenPlugin: ${config.captureScreenPluginId}
+                    storagePluginId: ${config.storagePluginId}
+                    ocrPluginId: ${config.ocrPluginId}
+                loadingPluginsException:
+                    captureScreenPlugin: ${captureScreenPlugin.exceptionOrNull()?.stackTrace}
+                    storagePlugin: ${storagePlugin.exceptionOrNull()?.stackTrace}
+                    ocrPlugin: ${ocrPlugin.exceptionOrNull()?.stackTrace}
+            """.trimIndent()
             ologger.error { errorMessage }
         }
-        _getScreenPlugin.value = getScreenPlugin.apply { onSuccess { it.load() } }
-        _storagePlugin.value = storagePlugin.apply { onSuccess { it.load() } }
-        _naturalLanguageConverterPlugin.value = naturalLanguageConverterPlugin.apply { onSuccess { it.load() } }
-        _screenLanguageConverterPlugin.value = screenLanguageConverterPlugin.apply { onSuccess { it.load() } }
+        _captureScreenPlugin.value = captureScreenPlugin
+        _storagePlugin.value = storagePlugin
+        _ocrPlugin.value = ocrPlugin
     }
 
-    val availableScreenPlugins: Map<String, AbsGetScreenPlugin> = PluginSelector.plugins.filter { it.value is AbsGetScreenPlugin }.mapValues { it.value as AbsGetScreenPlugin }
-    fun setScreenPlugin(pluginId: String) {
-        if (pluginId == _getScreenPlugin.value.getOrNull()?.pluginId) {
+    private val _availableCaptureScreenPlugins = mutableMapOf<String, AbsCaptureScreenPlugin>()
+    val availableCaptureScreenPlugins: Map<String, AbsCaptureScreenPlugin> = _availableCaptureScreenPlugins
+    fun setCaptureScreenPlugin(pluginId: String) {
+        if (pluginId == getCaptureScreenPlugin().getOrNull()?.pluginId) {
             return
         }
-        if (availableScreenPlugins.containsKey(pluginId)) {
-            ConfigManager.savePluginConfig(ConfigManager.pluginConfig.copy(getScreenPluginId = pluginId))
-            reloadPlugins()
+        // 如果插件已经初始化，则不切换
+        if (getCaptureScreenPlugin().getOrNull()?.initialized?.value == true) return
+        if (availableCaptureScreenPlugins.containsKey(pluginId)) {
+            ConfigManager.savePluginConfig(ConfigManager.pluginConfig.copy(captureScreenPluginId = pluginId))
+            getCaptureScreenPlugin().getOrNull()?.unselected()
+            _captureScreenPlugin.value = kotlin.runCatching { (availableCaptureScreenPlugins[pluginId]!!).apply { selected() } }
+            saveConfig()
         } else {
             ologger.error { "Plugin $pluginId not found" }
         }
     }
-    fun getScreenPlugin(): Result<AbsGetScreenPlugin> {
-        return _getScreenPlugin.value
+    fun getCaptureScreenPlugin(): Result<AbsCaptureScreenPlugin> {
+        return _captureScreenPlugin.value
     }
 
-    val availableStoragePlugins: Map<String, AbsStoragePlugin> = PluginSelector.plugins.filter { it.value is AbsStoragePlugin }.mapValues { it.value as AbsStoragePlugin }
+    private val _availableStoragePlugins = mutableMapOf<String, AbsStoragePlugin>()
+    val availableStoragePlugins: Map<String, AbsStoragePlugin> = _availableStoragePlugins
     fun setStoragePlugin(pluginId: String) {
-        if (pluginId == _storagePlugin.value.getOrNull()?.pluginId) {
+        if (pluginId == getStoragePlugin().getOrNull()?.pluginId) {
             return
         }
+        // 如果插件已经初始化，则不切换
+        if (getStoragePlugin().getOrNull()?.initialized?.value == true) return
         if (availableStoragePlugins.containsKey(pluginId)) {
             ConfigManager.savePluginConfig(ConfigManager.pluginConfig.copy(storagePluginId = pluginId))
-            reloadPlugins()
-        } else {
-            ologger.error { "Plugin $pluginId not found" }
+            getStoragePlugin().getOrNull()?.unselected()
+            _storagePlugin.value = kotlin.runCatching { (availableStoragePlugins[pluginId]!!).apply { selected() } }
+            saveConfig()
         }
     }
     fun getStoragePlugin(): Result<AbsStoragePlugin> {
         return _storagePlugin.value
     }
-    val availableNaturalLanguageConverterPlugins: Map<String, AbsNaturalLanguageConverterPlugin> = PluginSelector.plugins.filter { it.value is AbsNaturalLanguageConverterPlugin }.mapValues { it.value as AbsNaturalLanguageConverterPlugin }
-    fun setNaturalLanguageConverterPlugin(pluginId: String) {
-        if (pluginId == _naturalLanguageConverterPlugin.value.getOrNull()?.pluginId) {
-            return
-        }
-        if (availableNaturalLanguageConverterPlugins.containsKey(pluginId)) {
-            ConfigManager.savePluginConfig(ConfigManager.pluginConfig.copy(naturalLanguageConverterPluginId = pluginId))
-            reloadPlugins()
-        } else {
-            ologger.error { "Plugin $pluginId not found" }
-        }
-    }
-    fun getNaturalLanguageConverterPlugin(): Result<AbsNaturalLanguageConverterPlugin> {
-        return _naturalLanguageConverterPlugin.value
-    }
-    val availableScreenLanguageConverterPlugins: Map<String, AbsScreenLanguageConverterPlugin> = PluginSelector.plugins.filter { it.value is AbsScreenLanguageConverterPlugin }.mapValues { it.value as AbsScreenLanguageConverterPlugin }
+
+    private val _availableOCRPlugins = mutableMapOf<String, AbsOCRPlugin>()
+    val availableOCRPlugins: Map<String, AbsOCRPlugin> = _availableOCRPlugins
     fun setScreenLanguageConverterPlugin(pluginId: String) {
-        if (pluginId == _screenLanguageConverterPlugin.value.getOrNull()?.pluginId) {
+        if (pluginId == getOCRPlugin().getOrNull()?.pluginId) {
             return
         }
-        if (availableScreenLanguageConverterPlugins.containsKey(pluginId)) {
-            ConfigManager.savePluginConfig(ConfigManager.pluginConfig.copy(screenLanguageConverterPluginId = pluginId))
-            reloadPlugins()
-        } else {
-            ologger.error { "Plugin $pluginId not found" }
+        // 如果插件已经初始化，则不切换
+        if (getOCRPlugin().getOrNull()?.initialized?.value == true) return
+        if (availableOCRPlugins.containsKey(pluginId)) {
+            ConfigManager.savePluginConfig(ConfigManager.pluginConfig.copy(ocrPluginId = pluginId))
+            getOCRPlugin().getOrNull()?.unselected()
+            _ocrPlugin.value = kotlin.runCatching { (availableOCRPlugins[pluginId]!!).apply { selected() } }
+            saveConfig()
         }
     }
-    fun getScreenLanguageConverterPlugin(): Result<AbsScreenLanguageConverterPlugin> {
-        return _screenLanguageConverterPlugin.value
+    fun getOCRPlugin(): Result<AbsOCRPlugin> {
+        return _ocrPlugin.value
+    }
+
+    private fun saveConfig() {
+        ConfigManager.savePluginConfig(
+            ConfigManager.pluginConfig.copy(
+                captureScreenPluginId = getCaptureScreenPlugin().getOrNull()?.pluginId,
+                storagePluginId = getStoragePlugin().getOrNull()?.pluginId,
+                ocrPluginId = getOCRPlugin().getOrNull()?.pluginId
+            )
+        )
     }
 
     fun initAllPlugins() {
-        getScreenPlugin().getOrThrow().tryInit().apply {
+        getCaptureScreenPlugin().getOrThrow().tryInit().apply {
             if (this is PluginBasic.InitResult.Failed || this is PluginBasic.InitResult.RequestConfigUI) _needJumpConfigUI.value = true
             if (this is PluginBasic.InitResult.Failed) throw this.exception
         }
@@ -123,22 +165,17 @@ object PluginManager {
             if (this is PluginBasic.InitResult.Failed || this is PluginBasic.InitResult.RequestConfigUI) _needJumpConfigUI.value = true
             if (this is PluginBasic.InitResult.Failed) throw this.exception
         }
-        getNaturalLanguageConverterPlugin().getOrThrow().tryInit().apply {
-            if (this is PluginBasic.InitResult.Failed || this is PluginBasic.InitResult.RequestConfigUI) _needJumpConfigUI.value = true
-            if (this is PluginBasic.InitResult.Failed) throw this.exception
-        }
-        getScreenLanguageConverterPlugin().getOrThrow().tryInit().apply {
+        getOCRPlugin().getOrThrow().tryInit().apply {
             if (this is PluginBasic.InitResult.Failed || this is PluginBasic.InitResult.RequestConfigUI) _needJumpConfigUI.value = true
             if (this is PluginBasic.InitResult.Failed) throw this.exception
         }
     }
     lateinit var allPluginsInitialized: StateFlow<Boolean> private set
-    private suspend fun createAllPluginsInitializedFlow() {
+    private suspend fun createAllPluginsInitializedListenerFlow() {
         allPluginsInitialized = combine(
-            _getScreenPlugin.value.map { it.initialized }.getOrThrow(),
+            _captureScreenPlugin.value.map { it.initialized }.getOrThrow(),
             _storagePlugin.value.map { it.initialized }.getOrThrow(),
-            _naturalLanguageConverterPlugin.value.map { it.initialized }.getOrThrow(),
-            _screenLanguageConverterPlugin.value.map { it.initialized }.getOrThrow(),
+            _ocrPlugin.value.map { it.initialized }.getOrThrow(),
         ) { plugins ->
             plugins.all { it }
         }.stateIn(CoroutineScope(Dispatchers.IO))

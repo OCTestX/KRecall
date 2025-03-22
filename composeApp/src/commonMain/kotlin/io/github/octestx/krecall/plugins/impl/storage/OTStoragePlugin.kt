@@ -1,12 +1,13 @@
 package io.github.octestx.krecall.plugins.impl.storage
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
+import io.github.kotlin.fibonacci.utils.OS
 import io.github.kotlin.fibonacci.utils.linkFile
 import io.github.kotlin.fibonacci.utils.ojson
 import io.github.octestx.krecall.exceptions.ConfigurationNotSavedException
@@ -27,6 +28,8 @@ import java.nio.file.Files
 import java.nio.file.Paths
 
 class OTStoragePlugin: AbsStoragePlugin(pluginId = "OTStoragePlugin") {
+    override val supportPlatform: Set<OS.OperatingSystem> = setOf(OS.OperatingSystem.WIN, OS.OperatingSystem.LINUX, OS.OperatingSystem.MACOS, OS.OperatingSystem.OTHER)
+    override val supportUI: Boolean = true
     private val ologger = noCoLogger<OTStoragePlugin>()
     private val configFile = File(pluginDir, "config.json")
     @Volatile
@@ -38,16 +41,24 @@ class OTStoragePlugin: AbsStoragePlugin(pluginId = "OTStoragePlugin") {
         val limitStorage: Long,
         val imageSimilarityLimit: Float,
     )
-    override suspend fun requireOutputStream(timestamp: Long): OutputStream = requireFileBitItNotExits(timestamp).apply { createNewFile() }.outputStream()
+    override suspend fun requireImageOutputStream(timestamp: Long): OutputStream = requireImageFileBitItNotExits(timestamp).apply { createNewFile() }.outputStream()
     private fun getFile(fileTimestamp: Long): File {
         return File(getScreenDir(), "$fileTimestamp.png")
     }
 
-    override suspend fun requireFileBitItNotExits(timestamp: Long): File {
+    override suspend fun requireImageFileBitItNotExits(timestamp: Long): File {
         val f = getFile(timestamp)
         if (f.exists()) f.delete()
         OTStorageDB.addNewRecord(timestamp, timestamp)
         return f
+    }
+
+    override suspend fun requireAudioOutputStream(timestamp: Long): OutputStream {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun requireAudioFileBitItNotExits(timestamp: Long): File {
+        TODO("Not yet implemented")
     }
 
     override suspend fun processed(timestamp: Long) {
@@ -128,15 +139,13 @@ class OTStoragePlugin: AbsStoragePlugin(pluginId = "OTStoragePlugin") {
         ologger.info { "Loaded" }
     }
 
-    override fun unload() {}
+    override fun selected() {}
+    override fun unselected() {}
     private var savedConfig = MutableStateFlow(true)
     @Composable
     override fun UI() {
         val scope = rememberCoroutineScope()
         Column {
-            if (savedConfig.collectAsState().value.not()) {
-                Text("需要保存", modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.tertiary))
-            }
             var filePath by remember { mutableStateOf(config.filePath ?: "") }
             TextField(filePath, {
                 filePath = it
@@ -185,7 +194,7 @@ class OTStoragePlugin: AbsStoragePlugin(pluginId = "OTStoragePlugin") {
                 } catch (e: Throwable) {
                     ologger.error(e)
                 }
-            }) {
+            }, enabled = initialized.value.not()) {
                 Text(saveText)
             }
         }

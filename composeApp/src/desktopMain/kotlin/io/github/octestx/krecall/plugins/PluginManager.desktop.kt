@@ -1,0 +1,26 @@
+package io.github.octestx.krecall.plugins
+
+import io.github.octestx.krecall.plugins.basic.PluginBasic
+import io.github.octestx.krecall.plugins.impl.getscreen.CaptureScreenByAwtRobotPlugin
+import io.github.octestx.krecall.plugins.impl.getscreen.CaptureScreenByKDESpectaclePlugin
+import io.github.octestx.krecall.plugins.impl.getscreen.CaptureScreenByWinPowerShellPlugin
+import io.github.octestx.krecall.plugins.impl.screenlanguage.OCRByZhiPuPlugin
+import io.github.octestx.krecall.plugins.impl.storage.OTStoragePlugin
+
+actual fun getPlatformExtPlugins(): Set<PluginBasic> {
+    //TODO
+    return setOf()
+}
+
+actual fun getPlatformInnerPlugins(): Set<PluginBasic> {
+    //TODO
+    return setOf(
+        CaptureScreenByAwtRobotPlugin(),
+        CaptureScreenByKDESpectaclePlugin(),
+        CaptureScreenByWinPowerShellPlugin(),
+
+        OCRByZhiPuPlugin(),
+
+        OTStoragePlugin(),
+    )
+}

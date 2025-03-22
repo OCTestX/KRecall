@@ -48,29 +48,33 @@ object GlobalRecalling {
         errorTimestamp.putAll(pairs)
         errorTimestampCount.value = errorTimestamp.size
         val collectingScreenJob = ioscope.launch {
-            while (true) {
-                if (collectingScreen.value) {
-                    ologger.info { "CollectingScreenJobLoop" }
-                    val getScreen = PluginManager.getScreenPlugin().getOrThrow()
-                    val storage = PluginManager.getStoragePlugin().getOrThrow()
-                    val timestamp = TimeStamp.current
-                    if (getScreen.supportOutputToStream()) {
-                        val outputStream =storage.requireOutputStream(timestamp)
-                        getScreen.getScreen(outputStream)
-                    } else {
-                        val file = storage.requireFileBitItNotExits(timestamp)
-                        getScreen.getScreen(file)
+            try {
+                while (true) {
+                    if (collectingScreen.value) {
+                        ologger.info { "CollectingScreenJobLoop" }
+                        val getScreen = PluginManager.getCaptureScreenPlugin().getOrThrow()
+                        val storage = PluginManager.getStoragePlugin().getOrThrow()
+                        val timestamp = TimeStamp.current
+                        if (getScreen.supportOutputToStream()) {
+                            val outputStream =storage.requireImageOutputStream(timestamp)
+                            getScreen.getScreen(outputStream)
+                        } else {
+                            val file = storage.requireImageFileBitItNotExits(timestamp)
+                            getScreen.getScreen(file)
+                        }
+                        DataDB.addNewRecord(timestamp)
+                        processingDataList.addLast(timestamp)
+                        allTimestamp.add(timestamp)
                     }
-                    DataDB.addNewRecord(timestamp)
-                    processingDataList.addLast(timestamp)
-                    allTimestamp.add(timestamp)
+                    // refresh collecting screen delay for each 500 ms
+                    for (i in 0 until (ConfigManager.config.collectScreenDelay / 50)) {
+                        delay(50)
+                        collectingDelay.value = (i + 1) * 50
+                    }
+                    collectingDelay.value = 0
                 }
-                // refresh collecting screen delay for each 500 ms
-                for (i in 0 until (ConfigManager.config.collectScreenDelay / 50)) {
-                    delay(50)
-                    collectingDelay.value = (i + 1) * 50
-                }
-                collectingDelay.value = 0
+            } catch (e: Exception) {
+                ologger.error(e) { "Collecting Fail!" }
             }
         }
         val processingDataJob = ioscope.launch {
@@ -88,10 +92,10 @@ object GlobalRecalling {
                             continue
                         }
                         val storage = PluginManager.getStoragePlugin().getOrThrow()
-                        val screenLanguageConverterPlugin = PluginManager.getScreenLanguageConverterPlugin().getOrThrow()
+                        val captureScreenPlugin = PluginManager.getOCRPlugin().getOrThrow()
                         val screen = storage.getScreenData(timestamp)
                         screen.onSuccess {
-                            val data = screenLanguageConverterPlugin.convert(it)
+                            val data = captureScreenPlugin.recognize(it)
                             if (data is AIResult.Success) {
                                 DataDB.appendData(timestamp, data.result)
                                 storage.processed(timestamp)

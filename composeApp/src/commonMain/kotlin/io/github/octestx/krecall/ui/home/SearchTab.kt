@@ -1,4 +1,4 @@
-package io.github.octestx.krecall.ui
+package io.github.octestx.krecall.ui.home
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.*
@@ -31,8 +31,8 @@ import kotlinx.coroutines.*
 import models.sqld.DataItem
 import ui.core.AbsUIPage
 
-class SearchPage(model: SearchPageModel): AbsUIPage<Any?, SearchPage.SearchPageState, SearchPage.SearchPageAction>(model) {
-    private val ologger = noCoLogger<SearchPage>()
+class SearchTab(model: SearchPageModel): AbsUIPage<Any?, SearchTab.SearchPageState, SearchTab.SearchPageAction>(model) {
+    private val ologger = noCoLogger<SearchTab>()
     @Composable
     override fun UI(state: SearchPageState) {
         Column {

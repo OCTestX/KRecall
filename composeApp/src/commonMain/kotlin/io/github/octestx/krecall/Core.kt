@@ -11,7 +11,6 @@ import io.github.octestx.krecall.repository.FileTree
 import io.klogging.noCoLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
@@ -43,7 +42,7 @@ object Core {
         FileTree.init()
         runBlocking {
             PluginManager.init()
-            if (ConfigManager.config.initialized) {
+            if (ConfigManager.config.initialized && ConfigManager.config.initPlugin) {
                 PluginManager.initAllPlugins()
             }
         }

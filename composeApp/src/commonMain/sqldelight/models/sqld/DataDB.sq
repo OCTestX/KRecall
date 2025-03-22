@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS DataItem (
     error TEXT DEFAULT NULL,
     -- json data string
     ocr Text DEFAULT NULL,
-    mark TEXT DEFAULT NULL
+    mark TEXT NOT NULL DEFAULT ""
 );
 
 
@@ -30,7 +30,7 @@ searchDataWithTimeRange:
 SELECT * FROM DataItem WHERE ((timestamp BETWEEN ? AND ?) AND (data LIKE ?));
 
 addNewRecord:
-INSERT INTO DataItem (timestamp) VALUES (?);
+INSERT INTO DataItem (timestamp, mark) VALUES (?, "");
 
 appendData:
 UPDATE DataItem SET data = ? WHERE timestamp = ?;

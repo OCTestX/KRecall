@@ -1,4 +1,4 @@
-package io.github.octestx.krecall.ui
+package io.github.octestx.krecall.ui.home
 
 import TimestampRateController
 import androidx.compose.foundation.Image
@@ -15,15 +15,14 @@ import io.github.octestx.krecall.GlobalRecalling
 import io.github.octestx.krecall.plugins.PluginManager
 import io.github.octestx.krecall.repository.ConfigManager
 import io.github.octestx.krecall.repository.DataDB
-import io.github.octestx.krecall.ui.utils.borderProgress
 import io.klogging.noCoLogger
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.decodeToImageBitmap
 import ui.core.AbsUIPage
 
-class HomePage(model: HomePageModel): AbsUIPage<Any?, HomePage.HomePageState, HomePage.HomePageAction>(model) {
-    private val ologger = noCoLogger<HomePage>()
+class HomeTab(model: HomePageModel): AbsUIPage<Any?, HomeTab.HomePageState, HomeTab.HomePageAction>(model) {
+    private val ologger = noCoLogger<HomeTab>()
     @OptIn(ExperimentalResourceApi::class)
     @Composable
     override fun UI(state: HomePageState) {

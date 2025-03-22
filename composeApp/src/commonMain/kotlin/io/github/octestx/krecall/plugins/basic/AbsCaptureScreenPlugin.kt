@@ -6,7 +6,7 @@ import java.io.OutputStream
 /**
  * A parameterless constructor is required when inheriting a plugin.
  */
-abstract class AbsGetScreenPlugin(pluginId: String): PluginBasic(pluginId) {
+abstract class AbsCaptureScreenPlugin(pluginId: String): PluginBasic(pluginId) {
     abstract suspend fun supportOutputToStream(): Boolean
 
     /**

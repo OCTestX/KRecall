@@ -28,6 +28,7 @@ import io.github.octestx.krecall.model.ImageState
 import io.github.octestx.krecall.plugins.PluginManager
 import io.github.octestx.krecall.plugins.basic.AIResult
 import io.github.octestx.krecall.plugins.basic.exceptionSerializableOjson
+import io.github.octestx.krecall.ui.TimestampViewPage.TimestampViewPageModelData
 import io.github.vinceglb.filekit.dialogs.compose.rememberFileSaverLauncher
 import io.github.vinceglb.filekit.write
 import io.klogging.noCoLogger
@@ -36,7 +37,7 @@ import kotlinx.coroutines.withContext
 import models.sqld.DataItem
 import ui.core.AbsUIPage
 
-class TimestampViewPage(private val model: TimestampViewPageModel): AbsUIPage<Any?, TimestampViewPage.TimestampViewPageState, TimestampViewPage.TimestampViewPageAction>(model) {
+class TimestampViewPage(model: TimestampViewPageModel): AbsUIPage<TimestampViewPageModelData, TimestampViewPage.TimestampViewPageState, TimestampViewPage.TimestampViewPageAction>(model) {
     private val ologger = noCoLogger<TimestampViewPage>()
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
@@ -93,7 +94,7 @@ class TimestampViewPage(private val model: TimestampViewPageModel): AbsUIPage<An
                         BasicText(
                             text = highlightText(
                                 text = state.dataItem.data_ ?: "NULL",
-                                highlights = model.highlightSearchStr
+                                highlights = state.highlights
                             ),
                             modifier = Modifier.padding(8.dp),
                             style = MaterialTheme.typography.bodyMedium
@@ -187,6 +188,7 @@ class TimestampViewPage(private val model: TimestampViewPageModel): AbsUIPage<An
     }
     data class TimestampViewPageState(
         val dataItem: DataItem,
+        val highlights: List<String>,
         val imageState: ImageState,
         val action: (TimestampViewPageAction) -> Unit
     ): AbsUIState<TimestampViewPageAction>()
@@ -196,26 +198,24 @@ class TimestampViewPage(private val model: TimestampViewPageModel): AbsUIPage<An
         val highlights: List<String>
     )
 
-    class TimestampViewPageModel(private val dataItem: DataItem, val highlightSearchStr: List<String>, private val goBack: () -> Unit): AbsUIModel<Any?, TimestampViewPageState, TimestampViewPageAction>() {
-        constructor(data: TimestampViewPageModelData, goBack: () -> Unit): this(data.dataItem, data.highlights, goBack)
-
+    class TimestampViewPageModel(private val goBack: () -> Unit): AbsUIModel<TimestampViewPageModelData, TimestampViewPageState, TimestampViewPageAction>() {
         val ologger = noCoLogger<TimestampViewPageModel>()
 
         private var imgState: ImageState by  mutableStateOf(ImageState.Loading)
 
         @Composable
-        override fun CreateState(params: Any?): TimestampViewPageState {
+        override fun CreateState(params: TimestampViewPageModelData): TimestampViewPageState {
             LaunchedEffect(Unit) {
-                if (GlobalRecalling.imageCache.containsKey(dataItem.timestamp)) {
-                    imgState = ImageState.Success(GlobalRecalling.imageCache[dataItem.timestamp]!!)
+                if (GlobalRecalling.imageCache.containsKey(params.dataItem.timestamp)) {
+                    imgState = ImageState.Success(GlobalRecalling.imageCache[params.dataItem.timestamp]!!)
                     return@LaunchedEffect
                 }
 
                 imgState = try {
                     withContext(GlobalRecalling.imageLoadingDispatcher) {
-                        val bytes = GlobalRecalling.imageCache.getOrPut(dataItem.timestamp) {
+                        val bytes = GlobalRecalling.imageCache.getOrPut(params.dataItem.timestamp) {
                             PluginManager.getStoragePlugin().getOrNull()
-                                ?.getScreenData(dataItem.timestamp)
+                                ?.getScreenData(params.dataItem.timestamp)
                                 ?.getOrNull()
                         }
                         if (bytes == null) {
@@ -228,11 +228,11 @@ class TimestampViewPage(private val model: TimestampViewPageModel): AbsUIPage<An
                     ImageState.Error
                 }
             }
-            return TimestampViewPageState(dataItem, imgState) {
+            return TimestampViewPageState(params.dataItem, params.highlights, imgState) {
                 actionExecute(params, it)
             }
         }
-        override fun actionExecute(params: Any?, action: TimestampViewPageAction) {
+        override fun actionExecute(params: TimestampViewPageModelData, action: TimestampViewPageAction) {
             when(action) {
                 TimestampViewPageAction.GoBack -> goBack()
             }

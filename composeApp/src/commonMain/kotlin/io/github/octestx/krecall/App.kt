@@ -1,21 +1,19 @@
 package io.github.octestx.krecall
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
-import androidx.compose.material3.Text
-import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import coil3.ImageLoader
 import coil3.compose.setSingletonImageLoaderFactory
 import coil3.memory.MemoryCache
 import coil3.request.crossfade
 import io.github.kotlin.fibonacci.ui.BasicMUIWrapper
+import io.github.octestx.krecall.plugins.PluginManager
 import io.github.octestx.krecall.repository.ConfigManager
-import io.github.octestx.krecall.ui.*
+import io.github.octestx.krecall.ui.TimestampViewPage
+import io.github.octestx.krecall.ui.home.HomePage
 import io.github.octestx.krecall.ui.tour.LoadingPage
 import io.github.octestx.krecall.ui.tour.PluginConfigPage
 import io.github.octestx.krecall.ui.tour.RecallSettingPage
@@ -25,7 +23,6 @@ import moe.tlaster.precompose.PreComposeApp
 import moe.tlaster.precompose.navigation.*
 import moe.tlaster.precompose.navigation.transition.NavTransition
 import org.jetbrains.compose.ui.tooling.preview.Preview
-import java.util.UUID
 
 @Composable
 @Preview
@@ -99,7 +96,7 @@ fun App() {
                     navTransition = NavTransition()
                 ) {
                     val model = remember { RecallSettingPage.RecallSettingPageModel(next = {
-                        navigator.navigate("/pluginConfigPage")
+                        navigator.navigate("/tour/pluginConfigPage")
                     }) }
                     val page = remember {
                         RecallSettingPage(model)
@@ -107,14 +104,15 @@ fun App() {
                     page.Main(Unit)
                 }
                 scene(
-                    route = "/pluginConfigPage",
+                    route = "/tour/pluginConfigPage",
                     navTransition = NavTransition(),
                 ) {
                     val model = remember {
                         PluginConfigPage.PluginConfigModel() {
                             navigator.navigate("/home", options = NavOptions(popUpTo = PopUpTo.Prev))
                             ConfigManager.save(ConfigManager.config.copy(
-                                initialized = true
+                                initialized = true,
+                                initPlugin = true
                             ))
                         }
                     }
@@ -127,70 +125,19 @@ fun App() {
                     route = "/home",
                     navTransition = NavTransition(),
                 ) {
-                    Column {
-                        // Tab导航栏
-                        var currentTabIndex by rememberSaveable { mutableStateOf(0) } // 当前选中Tab索引
-                        TabRow(selectedTabIndex = currentTabIndex) {
-                            Tab(
-                                selected = currentTabIndex == 0,
-                                onClick = { currentTabIndex = 0 }
-                            ) {
-                                Text("Home")
+                    val model = remember {
+                        HomePage.HomePageModel(
+                            navigate = {
+                                navigator.navigate(it)
+                            }, putNavData = { key, value ->
+                                navDataExchangeCache[key] = value
                             }
-                            Tab(
-                                selected = currentTabIndex == 1,
-                                onClick = { currentTabIndex = 1 }
-                            ) {
-                                Text("Search")
-                            }
-                            val count = GlobalRecalling.errorTimestampCount.collectAsState().value
-                            Tab(
-                                selected = currentTabIndex == 2,
-                                onClick = { currentTabIndex = 2 },
-                                enabled = count > 0
-                            ) {
-                                AnimatedContent(count) {
-                                    if (count > 0) {
-                                        Text("ViewProcessFails: $it")
-                                    } else {
-                                        Text("No ViewProcessFails")
-                                    }
-                                }
-                            }
-                        }
-                        val homeModel = rememberSaveable() { HomePage.HomePageModel() }
-                        val homePage = rememberSaveable() { HomePage(homeModel) }
-
-                        val searchModel = rememberSaveable() { SearchPage.SearchPageModel(jumpView = { data, search ->
-                            val modelData = TimestampViewPage.TimestampViewPageModelData(data, search)
-                            val modelDataId = UUID.randomUUID().toString()
-                            navDataExchangeCache[modelDataId] = modelData
-                            ologger.info { "SendModelDataId: $modelDataId" }
-                            navigator.navigate("/timestampViewPage?modelDataId=$modelDataId")
-                        }) }
-                        val searchPage = rememberSaveable() { SearchPage(searchModel) }
-
-                        val viewProcessFailsModel = rememberSaveable() { ViewProcessFailsPage.ViewProcessFailsPageModel(jumpView = { data, search ->
-                            val modelData = TimestampViewPage.TimestampViewPageModelData(data, search)
-                            val modelDataId = UUID.randomUUID().toString()
-                            navDataExchangeCache[modelDataId] = modelData
-                            ologger.info { "SendModelDataId: $modelDataId" }
-                            navigator.navigate("/timestampViewPage?modelDataId=$modelDataId")
-                        }) }
-                        val viewProcessFailsPage = rememberSaveable() { ViewProcessFailsPage(viewProcessFailsModel) }
-                        // 内容区域
-                        when (currentTabIndex) {
-                            0 -> {
-                                homePage.Main(Unit)
-                            }
-                            1 -> {
-                                searchPage.Main(Unit)
-                            }
-                            2 -> {
-                                viewProcessFailsPage.Main(Unit)
-                            }
-                        }
+                        )
                     }
+                    val page = remember {
+                        HomePage(model)
+                    }
+                    page.Main(Unit)
                 }
                 scene(
                     route = "/timestampViewPage",
@@ -201,13 +148,13 @@ fun App() {
                         ologger.info { "ReceiveModelDataId: $modelDataId" }
                     }
                     val modelData: TimestampViewPage.TimestampViewPageModelData = navDataExchangeCache[modelDataId] as TimestampViewPage.TimestampViewPageModelData
-                    val model = remember { TimestampViewPage.TimestampViewPageModel(modelData) {
+                    val model = remember { TimestampViewPage.TimestampViewPageModel {
                         navigator.goBack()
                     } }
                     val page = remember {
                         TimestampViewPage(model)
                     }
-                    page.Main(Unit)
+                    page.Main(modelData)
                 }
             }
 
@@ -216,7 +163,11 @@ fun App() {
 
             LaunchedEffect(Unit) {
                 if (ConfigManager.config.initialized) {
-                    navigator.navigate("/home")
+                    if (PluginManager.needJumpConfigUI.value || ConfigManager.config.initPlugin.not()) {
+                        navigator.navigate("/tour/pluginConfigPage")
+                    } else {
+                        navigator.navigate("/home")
+                    }
                 } else {
                     navigator.navigate("/tour/welcome")
                 }

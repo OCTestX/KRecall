@@ -1,5 +1,6 @@
 package io.github.octestx.krecall.ui.tour
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -7,7 +8,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -19,6 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import io.github.kotlin.fibonacci.ui.toast
+import io.github.kotlin.fibonacci.ui.utils.ToastModel
+import io.github.octestx.krecall.exceptions.ConfigurationNotSavedException
 import io.github.octestx.krecall.plugins.PluginManager
 import io.github.octestx.krecall.plugins.basic.*
 import io.klogging.noCoLogger
@@ -61,11 +63,6 @@ class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPa
                         }
                     }
                     item {
-                        PluginCard(state.naturalLanguageConverterPlugin, state.availableNaturalLanguageConverterPlugins, "自然语言转换插件") {
-                            state.action(PluginConfigAction.SelectNaturalLanguageConverterPlugin(it))
-                        }
-                    }
-                    item {
                         PluginCard(state.screenLanguageConverterPlugin, state.availableScreenLanguageConverterPlugins, "图片转换插件") {
                             state.action(PluginConfigAction.SelectScreenLanguageConverterPlugin(it))
                         }
@@ -104,34 +101,44 @@ class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPa
             }
             pluginData.onSuccess {
                 val initialized by it.initialized.collectAsState()
-                Row {
-                    if (initialized) {
-                        Text("$type[${it.pluginId}]: 已初始化", color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
-                    } else if (err == null) {
-                        Text("$type[${it.pluginId}]: 未初始化", color = MaterialTheme.colorScheme.secondary, modifier = Modifier.weight(1f))
-                    } else {
-                        Text("$type[${it.pluginId}]: 未初始化[${err?.message}]", color = MaterialTheme.colorScheme.secondary, modifier = Modifier.weight(1f))
-                    }
-                    Button(onClick = {
-                        it.tryInit().also { initResult ->
-                            if (initResult is PluginBasic.InitResult.Failed) err = initResult.exception
+                Column {
+                    Row {
+                        if (initialized) {
+                            Text("$type[${it.pluginId}]: 已初始化", color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
+                        } else if (err == null) {
+                            Text("$type[${it.pluginId}]: 未初始化", color = MaterialTheme.colorScheme.secondary, modifier = Modifier.weight(1f))
+                        } else {
+                            Text("$type[${it.pluginId}]: 未初始化[${err?.message}]", color = MaterialTheme.colorScheme.secondary, modifier = Modifier.weight(1f))
                         }
-                    }) {
-                        Text("INIT", modifier = Modifier.padding(4.dp))
+                        AnimatedVisibility(pluginData.getOrNull()?.initialized?.value != true) {
+                            Button(onClick = {
+                                it.tryInit().also { initResult ->
+                                    err = if (initResult is PluginBasic.InitResult.Failed) initResult.exception
+                                    else null
+                                }
+                            }) {
+                                Text("INIT", modifier = Modifier.padding(4.dp))
+                            }
+                        }
                     }
-                }
-                Surface(Modifier.padding(12.dp)) {
-                    it.UI()
+                    AnimatedVisibility(err is ConfigurationNotSavedException) {
+                        Text("配置未保存", modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primary), color = MaterialTheme.colorScheme.onPrimary)
+                    }
+                    Surface(Modifier.padding(12.dp)) {
+                        it.UI()
+                    }
                 }
             }
             LaunchedEffect(pluginData) {
                 pluginData.onFailure {
                     ologger.error(it) { "插件异常: ${it.message}" }
+                    toast.applyShow(ToastModel("插件异常: ${it.message}", type = ToastModel.Type.Error))
                 }
             }
             LaunchedEffect(err) {
                 err?.also {
                     ologger.error(it) { "插件运行时异常: ${it.message}" }
+                    toast.applyShow(ToastModel("插件运行时异常: ${it.message}", type = ToastModel.Type.Error))
                 }
             }
         }
@@ -142,18 +149,15 @@ class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPa
         data object ConfigDone: PluginConfigAction()
         data class SelectGetScreenPlugin(val pluginId: String): PluginConfigAction()
         data class SelectStoragePlugin(val pluginId: String): PluginConfigAction()
-        data class SelectNaturalLanguageConverterPlugin(val pluginId: String): PluginConfigAction()
         data class SelectScreenLanguageConverterPlugin(val pluginId: String): PluginConfigAction()
     }
     data class PluginConfigState(
-        val getScreenPlugin: Result<AbsGetScreenPlugin>,
-        val availableGetScreenPlugins: List<AbsGetScreenPlugin>,
+        val getScreenPlugin: Result<AbsCaptureScreenPlugin>,
+        val availableGetScreenPlugins: List<AbsCaptureScreenPlugin>,
         val storagePlugin: Result<AbsStoragePlugin>,
         val availableStoragePlugins: List<AbsStoragePlugin>,
-        val naturalLanguageConverterPlugin: Result<AbsNaturalLanguageConverterPlugin>,
-        val availableNaturalLanguageConverterPlugins: List<AbsNaturalLanguageConverterPlugin>,
-        val screenLanguageConverterPlugin: Result<AbsScreenLanguageConverterPlugin>,
-        val availableScreenLanguageConverterPlugins: List<AbsScreenLanguageConverterPlugin>,
+        val screenLanguageConverterPlugin: Result<AbsOCRPlugin>,
+        val availableScreenLanguageConverterPlugins: List<AbsOCRPlugin>,
         val action: (PluginConfigAction) -> Unit,
     ): AbsUIState<PluginConfigAction>()
 
@@ -162,14 +166,12 @@ class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPa
         @Composable
         override fun CreateState(params: Any?): PluginConfigState {
             return PluginConfigState(
-                PluginManager.getScreenPlugin(),
-                PluginManager.availableScreenPlugins.values.toList(),
-                PluginManager.getStoragePlugin(),
+                PluginManager.captureScreenPlugin.collectAsState().value,
+                PluginManager.availableCaptureScreenPlugins.values.toList(),
+                PluginManager.storagePlugin.collectAsState().value,
                 PluginManager.availableStoragePlugins.values.toList(),
-                PluginManager.getNaturalLanguageConverterPlugin(),
-                PluginManager.availableNaturalLanguageConverterPlugins.values.toList(),
-                PluginManager.getScreenLanguageConverterPlugin(),
-                PluginManager.availableScreenLanguageConverterPlugins.values.toList(),
+                PluginManager.ocrPlugin.collectAsState().value,
+                PluginManager.availableOCRPlugins.values.toList(),
             ) {
                 actionExecute(params, it)
             }
@@ -177,13 +179,11 @@ class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPa
         override fun actionExecute(params: Any?, action: PluginConfigAction) {
             when(action) {
                 PluginConfigAction.ConfigDone -> {
-                    if (PluginManager.getScreenPlugin().getOrNull()?.initialized?.value != true) {
+                    if (PluginManager.getCaptureScreenPlugin().getOrNull()?.initialized?.value != true) {
                         ologger.info { "GetScreenPlugin is not initialized" }
                     } else if (PluginManager.getStoragePlugin().getOrNull()?.initialized?.value != true) {
                         ologger.info { "StoragePlugin is not initialized" }
-                    } else if (PluginManager.getNaturalLanguageConverterPlugin().getOrNull()?.initialized?.value != true) {
-                        ologger.info { "NaturalLanguageConverterPlugin is not initialized" }
-                    } else if (PluginManager.getScreenLanguageConverterPlugin().getOrNull()?.initialized?.value != true) {
+                    }  else if (PluginManager.getOCRPlugin().getOrNull()?.initialized?.value != true) {
                         ologger.info { "ScreenLanguageConverterPlugin is not initialized" }
                     } else {
                         ologger.info { "All plugins are initialized" }
@@ -193,11 +193,7 @@ class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPa
                 }
 
                 is PluginConfigAction.SelectGetScreenPlugin -> {
-                    PluginManager.setScreenPlugin(action.pluginId)
-                }
-
-                is PluginConfigAction.SelectNaturalLanguageConverterPlugin -> {
-                    PluginManager.setNaturalLanguageConverterPlugin(action.pluginId)
+                    PluginManager.setCaptureScreenPlugin(action.pluginId)
                 }
                 is PluginConfigAction.SelectScreenLanguageConverterPlugin -> {
                     PluginManager.setScreenLanguageConverterPlugin(action.pluginId)

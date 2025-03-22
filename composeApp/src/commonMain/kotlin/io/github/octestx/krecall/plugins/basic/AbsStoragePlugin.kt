@@ -8,8 +8,10 @@ import java.io.OutputStream
  * A parameterless constructor is required when inheriting a plugin.
  */
 abstract class AbsStoragePlugin(pluginId: String): PluginBasic(pluginId) {
-    abstract suspend fun requireOutputStream(timestamp: Long): OutputStream
-    abstract suspend fun requireFileBitItNotExits(timestamp: Long): File
+    abstract suspend fun requireImageOutputStream(timestamp: Long): OutputStream
+    abstract suspend fun requireImageFileBitItNotExits(timestamp: Long): File
+    abstract suspend fun requireAudioOutputStream(timestamp: Long): OutputStream
+    abstract suspend fun requireAudioFileBitItNotExits(timestamp: Long): File
     abstract suspend fun processed(timestamp: Long)
     /**
      * @exception NoSuchFileException
@@ -18,7 +20,7 @@ abstract class AbsStoragePlugin(pluginId: String): PluginBasic(pluginId) {
     protected val imageDir: File = File(get<IPluginContext>(IPluginContext::class.java).getPluginDir(pluginId), "ScreenImages").apply {
         if (!exists()) mkdirs()
     }
-    protected fun mark(timestamp: Long, mark: String) = get<IPluginContext>(IPluginContext::class.java).markScreenData(timestamp, mark)
+    protected fun mark(timestamp: Long, mark: String) = get<IPluginContext>(IPluginContext::class.java).addMark(timestamp, mark)
     protected fun listTimestampWithMark(mark: String): List<Long> = get<IPluginContext>(IPluginContext::class.java).listTimestampWithMark(mark)
     protected fun listTimestampWithNotMark(mark: String): List<Long> = get<IPluginContext>(IPluginContext::class.java).listTimestampWithNotMark(mark)
 }

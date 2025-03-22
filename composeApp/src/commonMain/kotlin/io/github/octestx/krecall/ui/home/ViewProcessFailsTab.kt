@@ -1,4 +1,4 @@
-package io.github.octestx.krecall.ui
+package io.github.octestx.krecall.ui.home
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.*
@@ -27,8 +27,8 @@ import kotlinx.coroutines.*
 import models.sqld.DataItem
 import ui.core.AbsUIPage
 
-class ViewProcessFailsPage(model: ViewProcessFailsPageModel): AbsUIPage<Any?, ViewProcessFailsPage.ViewProcessFailsPageState, ViewProcessFailsPage.ViewProcessFailsPageAction>(model) {
-    private val ologger = noCoLogger<ViewProcessFailsPage>()
+class ViewProcessFailsTab(model: ViewProcessFailsPageModel): AbsUIPage<Any?, ViewProcessFailsTab.ViewProcessFailsPageState, ViewProcessFailsTab.ViewProcessFailsPageAction>(model) {
+    private val ologger = noCoLogger<ViewProcessFailsTab>()
     @Composable
     override fun UI(state: ViewProcessFailsPageState) {
         Column {

@@ -7,8 +7,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.res.loadImageBitmap
-import io.github.octestx.krecall.plugins.basic.AbsGetScreenPlugin
+import io.github.kotlin.fibonacci.utils.OS
+import io.github.octestx.krecall.plugins.basic.AbsCaptureScreenPlugin
 import io.klogging.noCoLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,8 +22,10 @@ import java.io.File
 import java.io.FileNotFoundException
 import java.io.OutputStream
 
-class GetScreenByKDESpectaclePlugin: AbsGetScreenPlugin(pluginId = "GetScreenByKDESpectaclePlugin") {
-    private val ologger = noCoLogger<GetScreenByKDESpectaclePlugin>()
+class CaptureScreenByKDESpectaclePlugin: AbsCaptureScreenPlugin(pluginId = "GetScreenByKDESpectaclePlugin") {
+    override val supportPlatform: Set<OS.OperatingSystem> = setOf(OS.OperatingSystem.LINUX)
+    override val supportUI: Boolean = true
+    private val ologger = noCoLogger<CaptureScreenByKDESpectaclePlugin>()
     override suspend fun supportOutputToStream(): Boolean = false
 
     override suspend fun getScreen(outputStream: OutputStream) {
@@ -49,7 +51,8 @@ class GetScreenByKDESpectaclePlugin: AbsGetScreenPlugin(pluginId = "GetScreenByK
         ologger.info { "Loaded" }
     }
 
-    override fun unload() {}
+    override fun selected() {}
+    override fun unselected() {}
 
     @OptIn(ExperimentalResourceApi::class)
     @Composable

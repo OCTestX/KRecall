@@ -7,7 +7,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
-import io.github.octestx.krecall.plugins.basic.AbsGetScreenPlugin
+import io.github.kotlin.fibonacci.utils.OS
+import io.github.octestx.krecall.plugins.basic.AbsCaptureScreenPlugin
 import io.klogging.noCoLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,41 +18,73 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.decodeToImageBitmap
-import java.awt.Dimension
-import java.awt.Rectangle
-import java.awt.Robot
-import java.awt.Toolkit
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.OutputStream
-import javax.imageio.ImageIO
 
-
-class GetScreenByAwtRobotPlugin: AbsGetScreenPlugin(pluginId = "GetScreenByAwtRobotPlugin") {
-    private val ologger = noCoLogger<GetScreenByAwtRobotPlugin>()
+class CaptureScreenByWinPowerShellPlugin: AbsCaptureScreenPlugin(pluginId = "GetScreenByWinPowerShellPlugin") {
+    override val supportPlatform: Set<OS.OperatingSystem> = setOf(OS.OperatingSystem.WIN)
+    override val supportUI: Boolean = true
+    private val ologger = noCoLogger<CaptureScreenByWinPowerShellPlugin>()
     override suspend fun supportOutputToStream(): Boolean = false
 
     override suspend fun getScreen(outputStream: OutputStream) {
         throw UnsupportedOperationException()
     }
-    private lateinit var robot: Robot
-    private lateinit var screenRectangle: Rectangle
 
     override suspend fun getScreen(outputFileBitItNotExits: File) {
         withContext(Dispatchers.IO) {
-            val screenshot = robot.createScreenCapture(screenRectangle)
-            ImageIO.write(screenshot, "png",  outputFileBitItNotExits);
+            ologger.info { "getScreen: $outputFileBitItNotExits" }
+
+
+            // 更安全的路径处理方案
+            val safePath = outputFileBitItNotExits.absolutePath
+                .replace("'", "''")  // 处理单引号
+                .replace(" ", "` ")  // 处理空格
+
+            val screenSTR = "\$" + "screen"
+            val bitmapSTR = "\$" + "bitmap"
+            val graphicsSTR = "\$" + "graphics"
+            val psCommand = """
+                Add-Type -AssemblyName System.Windows.Forms
+                Add-Type -AssemblyName System.Drawing
+                $screenSTR = [Windows.Forms.Screen]::PrimaryScreen.Bounds
+                $bitmapSTR = New-Object Drawing.Bitmap $screenSTR.width, $screenSTR.height
+                $graphicsSTR = [Drawing.Graphics]::FromImage($bitmapSTR)
+                $graphicsSTR.CopyFromScreen([Drawing.Point]::Empty, [Drawing.Point]::Empty, $screenSTR.size)
+                $bitmapSTR.Save('$safePath')  # 使用单引号包裹路径
+            """.trimIndent()
+
+            val processBuilder = ProcessBuilder(
+                "powershell.exe",
+                "-Command",
+                psCommand
+            )
+
+            processBuilder.redirectErrorStream(true)
+            val process = processBuilder.start()
+
+            // 处理执行结果
+            val exitCode = process.waitFor()
+            if (exitCode != 0 || !outputFileBitItNotExits.exists()) {
+                val errorOutput = process.errorStream.bufferedReader().readText()
+                val err = RuntimeException("""
+                    Screenshot failed! 
+                    Exit code: $exitCode
+                    Error: $errorOutput
+                """.trimIndent())
+                ologger.error(err) { "Screenshot failed" }
+                throw err
+            }
         }
     }
 
     override fun load() {
-        robot = Robot()
-        val screenSize: Dimension = Toolkit.getDefaultToolkit().screenSize
-        screenRectangle = Rectangle(screenSize)
         ologger.info { "Loaded" }
     }
 
-    override fun unload() {}
+    override fun selected() {}
+    override fun unselected() {}
 
     @OptIn(ExperimentalResourceApi::class)
     @Composable
