@@ -28,8 +28,9 @@ import java.io.OutputStream
 import javax.imageio.ImageIO
 
 
-class CaptureScreenByAwtRobotPlugin: AbsCaptureScreenPlugin(pluginId = "GetScreenByAwtRobotPlugin") {
-    override val supportPlatform: Set<OS.OperatingSystem> = setOf(OS.OperatingSystem.WIN, OS.OperatingSystem.LINUX, OS.OperatingSystem.MACOS)
+class CaptureScreenByAwtRobotPlugin: AbsCaptureScreenPlugin(pluginId = "CaptureScreenByAwtRobotPlugin") {
+    //TODO
+    override val supportPlatform: Set<OS.OperatingSystem> = setOf()
     override val supportUI: Boolean = true
     private val ologger = noCoLogger<CaptureScreenByAwtRobotPlugin>()
     override suspend fun supportOutputToStream(): Boolean = false

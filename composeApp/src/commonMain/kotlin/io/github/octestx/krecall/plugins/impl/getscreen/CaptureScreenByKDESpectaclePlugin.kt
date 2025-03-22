@@ -22,7 +22,7 @@ import java.io.File
 import java.io.FileNotFoundException
 import java.io.OutputStream
 
-class CaptureScreenByKDESpectaclePlugin: AbsCaptureScreenPlugin(pluginId = "GetScreenByKDESpectaclePlugin") {
+class CaptureScreenByKDESpectaclePlugin: AbsCaptureScreenPlugin(pluginId = "CaptureScreenByKDESpectaclePlugin") {
     override val supportPlatform: Set<OS.OperatingSystem> = setOf(OS.OperatingSystem.LINUX)
     override val supportUI: Boolean = true
     private val ologger = noCoLogger<CaptureScreenByKDESpectaclePlugin>()

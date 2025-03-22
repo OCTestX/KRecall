@@ -22,7 +22,7 @@ import java.io.File
 import java.io.FileNotFoundException
 import java.io.OutputStream
 
-class CaptureScreenByWinPowerShellPlugin: AbsCaptureScreenPlugin(pluginId = "GetScreenByWinPowerShellPlugin") {
+class CaptureScreenByWinPowerShellPlugin: AbsCaptureScreenPlugin(pluginId = "CaptureScreenByWinPowerShellPlugin") {
     override val supportPlatform: Set<OS.OperatingSystem> = setOf(OS.OperatingSystem.WIN)
     override val supportUI: Boolean = true
     private val ologger = noCoLogger<CaptureScreenByWinPowerShellPlugin>()

@@ -28,7 +28,7 @@ import kotlinx.serialization.Serializable
 import java.io.File
 
 
-class OCRByZhiPuPlugin: AbsOCRPlugin("ScreenLanguageConverterByKimiPlugin") {
+class OCRByZhiPuPlugin: AbsOCRPlugin("OCRByZhiPuPlugin") {
     override val supportPlatform: Set<OS.OperatingSystem> = setOf(OS.OperatingSystem.WIN, OS.OperatingSystem.LINUX, OS.OperatingSystem.MACOS, OS.OperatingSystem.OTHER)
     override val supportUI: Boolean = true
     private val ologger = noCoLogger<OTStoragePlugin>()

@@ -1,5 +1,6 @@
 package io.github.octestx.krecall.ui.tour
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
@@ -22,7 +23,10 @@ import io.github.kotlin.fibonacci.ui.toast
 import io.github.kotlin.fibonacci.ui.utils.ToastModel
 import io.github.octestx.krecall.exceptions.ConfigurationNotSavedException
 import io.github.octestx.krecall.plugins.PluginManager
-import io.github.octestx.krecall.plugins.basic.*
+import io.github.octestx.krecall.plugins.basic.AbsCaptureScreenPlugin
+import io.github.octestx.krecall.plugins.basic.AbsOCRPlugin
+import io.github.octestx.krecall.plugins.basic.AbsStoragePlugin
+import io.github.octestx.krecall.plugins.basic.PluginBasic
 import io.klogging.noCoLogger
 import ui.core.AbsUIPage
 
@@ -121,8 +125,15 @@ class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPa
                             }
                         }
                     }
-                    AnimatedVisibility(err is ConfigurationNotSavedException) {
-                        Text("配置未保存", modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primary), color = MaterialTheme.colorScheme.onPrimary)
+                    AnimatedContent(err) { err ->
+                        when (err) {
+                            is ConfigurationNotSavedException -> {
+                                Text("配置未保存: ${err.message}", modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primary), color = MaterialTheme.colorScheme.onPrimary)
+                            }
+                            is IllegalArgumentException -> {
+                                Text("参数错误: ${err.message}", modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primary), color = MaterialTheme.colorScheme.onPrimary)
+                            }
+                        }
                     }
                     Surface(Modifier.padding(12.dp)) {
                         it.UI()
