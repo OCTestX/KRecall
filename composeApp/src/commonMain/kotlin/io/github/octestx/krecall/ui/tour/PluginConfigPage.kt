@@ -135,8 +135,10 @@ class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPa
                             }
                         }
                     }
-                    Surface(Modifier.padding(12.dp)) {
-                        it.UI()
+                    if (it.supportUI) {
+                        Surface(Modifier.padding(12.dp)) {
+                            it.UI()
+                        }
                     }
                 }
             }

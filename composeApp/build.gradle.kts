@@ -7,7 +7,11 @@ plugins {
     alias(libs.plugins.composeCompiler)
     id("org.jetbrains.kotlin.plugin.serialization") version("1.8.10")
     id("app.cash.sqldelight") version("2.0.2")
+    id("dev.hydraulic.conveyor") version "1.12"
 }
+
+group = "io.github.octestx.krecall"
+version = "0.1"
 
 kotlin {
     androidTarget {
@@ -17,7 +21,12 @@ kotlin {
 //        }
     }
     
-    jvm("desktop")
+    jvm("desktop") {
+        // 可选配置，如设置目标版本
+        compilations.all {
+            kotlinOptions.jvmTarget = "11"
+        }
+    }
     
     sourceSets {
         val desktopMain by getting
@@ -58,6 +67,8 @@ kotlin {
             implementation("io.github.vinceglb:filekit-dialogs:0.10.0-beta01")
             implementation("io.github.vinceglb:filekit-dialogs-compose:0.10.0-beta01")
             implementation("io.github.vinceglb:filekit-coil:0.10.0-beta01")
+
+            implementation("dev.hydraulic.conveyor:conveyor-control:1.1")
         }
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)
@@ -97,6 +108,12 @@ android {
 dependencies {
     implementation(libs.androidx.ui.text.android)
     debugImplementation(compose.uiTooling)
+
+    // Use the configurations created by the Conveyor plugin to tell Gradle/Conveyor where to find the artifacts for each platform.
+    linuxAmd64(compose.desktop.linux_x64)
+    macAmd64(compose.desktop.macos_x64)
+    macAarch64(compose.desktop.macos_arm64)
+    windowsAmd64(compose.desktop.windows_x64)
 }
 
 compose {
@@ -129,3 +146,12 @@ sqldelight {
         }
     }
 }
+
+// region Work around temporary Compose bugs.
+configurations.all {
+    attributes {
+        // https://github.com/JetBrains/compose-jb/issues/1404#issuecomment-1146894731
+        attribute(Attribute.of("ui", String::class.java), "awt")
+    }
+}
+// endregion

@@ -1,12 +1,18 @@
 package io.github.octestx.krecall.plugins
 
 import io.github.kotlin.fibonacci.utils.OS
-import io.github.octestx.krecall.plugins.basic.*
+import io.github.octestx.krecall.plugins.basic.AbsCaptureScreenPlugin
+import io.github.octestx.krecall.plugins.basic.AbsOCRPlugin
+import io.github.octestx.krecall.plugins.basic.AbsStoragePlugin
+import io.github.octestx.krecall.plugins.basic.PluginBasic
 import io.github.octestx.krecall.repository.ConfigManager
 import io.klogging.noCoLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 
 expect fun getPlatformExtPlugins(): Set<PluginBasic>
 expect fun getPlatformInnerPlugins(): Set<PluginBasic>
@@ -49,6 +55,7 @@ object PluginManager {
                 is AbsCaptureScreenPlugin -> _availableCaptureScreenPlugins[plugin.pluginId] = plugin
                 is AbsStoragePlugin -> _availableStoragePlugins[plugin.pluginId] = plugin
                 is AbsOCRPlugin -> _availableOCRPlugins[plugin.pluginId] = plugin
+                else -> _allOtherPlugin[plugin.pluginId] = plugin
             }
         }
         allPlugin = plugins
@@ -86,6 +93,9 @@ object PluginManager {
         _storagePlugin.value = storagePlugin
         _ocrPlugin.value = ocrPlugin
     }
+
+    private val _allOtherPlugin = mutableMapOf<String, PluginBasic>()
+    val allOtherPlugin: Map<String, PluginBasic> = _allOtherPlugin
 
     private val _availableCaptureScreenPlugins = mutableMapOf<String, AbsCaptureScreenPlugin>()
     val availableCaptureScreenPlugins: Map<String, AbsCaptureScreenPlugin> = _availableCaptureScreenPlugins

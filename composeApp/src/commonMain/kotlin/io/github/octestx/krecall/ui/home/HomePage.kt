@@ -15,11 +15,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import io.github.kotlin.fibonacci.ui.toast
 import io.github.octestx.krecall.GlobalRecalling
+import io.github.octestx.krecall.composeapp.generated.resources.Res
+import io.github.octestx.krecall.composeapp.generated.resources.developer_avatar
 import io.github.octestx.krecall.repository.ConfigManager
 import io.github.octestx.krecall.ui.TimestampViewPage
 import io.klogging.noCoLogger
-import krecall.composeapp.generated.resources.Res
-import krecall.composeapp.generated.resources.developer_avatar
 import org.jetbrains.compose.resources.InternalResourceApi
 import org.jetbrains.compose.resources.painterResource
 import ui.core.AbsUIPage
