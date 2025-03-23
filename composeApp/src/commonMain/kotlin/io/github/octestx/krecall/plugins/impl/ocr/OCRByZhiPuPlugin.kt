@@ -133,7 +133,8 @@ class OCRByZhiPuPlugin: AbsOCRPlugin("OCRByZhiPuPlugin") {
         } catch (e: Throwable) {
             ologger.warn { "加载配置文件时遇到错误，已复原: ${configFile.absolutePath}" }
             configFile.renameTo(File(configFile.parentFile, "config.json.old"))
-            config = ScreenLanguageConverterByZhiPuPluginConfig("", "GLM-4V-Flash", defaultSystemMsg, 0.1, 1.0, 2.0)
+            //TODO remove private api key
+            config = ScreenLanguageConverterByZhiPuPluginConfig("2137bdde5a5344618ac99458a160430d.SQsjadVmdhLb5CgN", "GLM-4V-Flash", defaultSystemMsg, 0.1, 1.0, 2.0)
             configFile.writeText(ojson.encodeToString(config))
         }
         ologger.info { "Loaded" }
