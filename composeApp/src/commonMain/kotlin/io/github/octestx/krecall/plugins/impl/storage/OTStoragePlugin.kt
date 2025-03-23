@@ -42,22 +42,21 @@ class OTStoragePlugin: AbsStoragePlugin(pluginId = "OTStoragePlugin") {
         val imageSimilarityLimit: Float,
     )
     override suspend fun requireImageOutputStream(timestamp: Long): OutputStream = requireImageFileBitItNotExits(timestamp).apply { createNewFile() }.outputStream()
-    private fun getFile(fileTimestamp: Long): File {
+    private fun getScreenFile(fileTimestamp: Long): File {
         return File(getScreenDir(), "$fileTimestamp.png")
+    }
+    private fun getAudioFile(fileTimestamp: Long): File {
+        return File(getCaptureAudioDir(), "$fileTimestamp.wav")
     }
 
     override suspend fun requireImageFileBitItNotExits(timestamp: Long): File {
-        val f = getFile(timestamp)
+        val f = getScreenFile(timestamp)
         if (f.exists()) f.delete()
         OTStorageDB.addNewRecord(timestamp, timestamp)
         return f
     }
 
     override suspend fun requireAudioOutputStream(timestamp: Long): OutputStream {
-        TODO("Not yet implemented")
-    }
-
-    override suspend fun requireAudioFileBitItNotExits(timestamp: Long): File {
         TODO("Not yet implemented")
     }
 
@@ -71,7 +70,7 @@ class OTStoragePlugin: AbsStoragePlugin(pluginId = "OTStoragePlugin") {
                 var countSpace = 0L
                 val countedFiles = mutableListOf<Pair<Long, File>>()
                 for (itemTimeStamp in list) {
-                    val f = getFile(itemTimeStamp)
+                    val f = getScreenFile(itemTimeStamp)
                     countSpace += f.length()
                     countedFiles.add(itemTimeStamp to f)
                     if (countSpace >= needSpace) break
@@ -122,6 +121,7 @@ class OTStoragePlugin: AbsStoragePlugin(pluginId = "OTStoragePlugin") {
     }
 
     private fun getScreenDir() = if (config.filePath.isEmpty()) imageDir else File(config.filePath)
+    private fun getCaptureAudioDir() = if (config.filePath.isEmpty()) audioDir else File(config.filePath)
     override fun load() {
         try {
             config = ojson.decodeFromString(configFile.readText())

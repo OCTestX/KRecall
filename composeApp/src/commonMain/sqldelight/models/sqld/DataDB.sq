@@ -52,3 +52,6 @@ UPDATE DataItem SET status = 2, error = ? WHERE timestamp = ?;
 
 appendOCRData:
 UPDATE DataItem SET ocr = ? WHERE timestamp = ?;
+
+getLeastTimestamp:
+SELECT timestamp FROM DataItem WHERE status = 0 OR status = 2 ORDER BY timestamp ASC LIMIT 1;

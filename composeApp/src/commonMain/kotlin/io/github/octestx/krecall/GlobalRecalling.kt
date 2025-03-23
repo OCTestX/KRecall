@@ -4,6 +4,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import io.github.octestx.krecall.plugins.PluginManager
 import io.github.octestx.krecall.plugins.basic.AIResult
+import io.github.octestx.krecall.plugins.basic.AbsCaptureAudioPlugin
 import io.github.octestx.krecall.plugins.basic.exceptionSerializableOjson
 import io.github.octestx.krecall.repository.ConfigManager
 import io.github.octestx.krecall.repository.DataDB
@@ -16,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import java.io.BufferedOutputStream
 
 object GlobalRecalling {
     private val ologger = noCoLogger<GlobalRecalling>()
@@ -23,6 +25,7 @@ object GlobalRecalling {
 
     val allTimestamp = mutableStateListOf<Long>()
     val collectingScreen = MutableStateFlow(true)
+    val collectingAudio = MutableStateFlow(true)
     val collectingDelay = MutableStateFlow(0L)
     val processingData = MutableStateFlow(true)
     val errorTimestamp = mutableStateMapOf<Long, AIResult.Failed<*>>()
@@ -52,15 +55,15 @@ object GlobalRecalling {
                 while (true) {
                     if (collectingScreen.value) {
                         ologger.info { "CollectingScreenJobLoop" }
-                        val getScreen = PluginManager.getCaptureScreenPlugin().getOrThrow()
+                        val captureScreen = PluginManager.getCaptureScreenPlugin().getOrThrow()
                         val storage = PluginManager.getStoragePlugin().getOrThrow()
                         val timestamp = TimeStamp.current
-                        if (getScreen.supportOutputToStream()) {
+                        if (captureScreen.supportOutputToStream()) {
                             val outputStream =storage.requireImageOutputStream(timestamp)
-                            getScreen.getScreen(outputStream)
+                            captureScreen.getScreen(outputStream)
                         } else {
                             val file = storage.requireImageFileBitItNotExits(timestamp)
-                            getScreen.getScreen(file)
+                            captureScreen.getScreen(file)
                         }
                         DataDB.addNewRecord(timestamp)
                         processingDataList.addLast(timestamp)
@@ -72,6 +75,34 @@ object GlobalRecalling {
                         collectingDelay.value = (i + 1) * 50
                     }
                     collectingDelay.value = 0
+                }
+            } catch (e: Exception) {
+                ologger.error(e) { "Collecting Fail!" }
+            }
+        }
+        val audioDataReceiver = object : AbsCaptureAudioPlugin.AudioDataReceiver {
+            override fun receive(data: ByteArray) {
+                //TODO
+                ologger.info { "RECEIVE AUDIO DATA: ${data.size}" }
+            }
+        }
+        var currentCaptureAudioOutputStream: BufferedOutputStream? = null
+        val collectingAudioJob = ioscope.launch {
+            try {
+                val captureAudio = PluginManager.getCaptureAudioPlugin().getOrThrow()
+                captureAudio.provideReceiver(audioDataReceiver)
+                while (true) {
+                    val leastTimestamp = DataDB.getLeastTimestamp() ?: continue
+                    if (collectingAudio.value && captureAudio.isCapturing.not()) {
+                        ologger.info { "CollectingAudioJobLoop" }
+                        val storage = PluginManager.getStoragePlugin().getOrThrow()
+                        val output = storage.requireAudioOutputStream(leastTimestamp)
+                        val outputStream = BufferedOutputStream(output)
+                        currentCaptureAudioOutputStream = outputStream
+                        captureAudio.start(outputStream)
+                        // TODO change delay time
+                        delay(150)
+                    }
                 }
             } catch (e: Exception) {
                 ologger.error(e) { "Collecting Fail!" }
@@ -98,6 +129,12 @@ object GlobalRecalling {
                             val data = captureScreenPlugin.recognize(it)
                             if (data is AIResult.Success) {
                                 DataDB.appendData(timestamp, data.result)
+                                //让音频捕获插件暂停换文件, 在collectingAudioJob中, 当它判断插件被暂停了, 会重新启动并携带新文件
+                                val captureAudioPlugin = PluginManager.getCaptureAudioPlugin().getOrNull()
+                                if (captureAudioPlugin != null) {
+                                    currentCaptureAudioOutputStream?.close()
+                                    captureAudioPlugin.pause()
+                                }
                                 storage.processed(timestamp)
                                 DataDB.processed(timestamp)
                             } else if (data is AIResult.Failed<String>) {

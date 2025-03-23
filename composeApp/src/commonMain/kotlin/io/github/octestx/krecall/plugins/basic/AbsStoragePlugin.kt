@@ -11,13 +11,15 @@ abstract class AbsStoragePlugin(pluginId: String): PluginBasic(pluginId) {
     abstract suspend fun requireImageOutputStream(timestamp: Long): OutputStream
     abstract suspend fun requireImageFileBitItNotExits(timestamp: Long): File
     abstract suspend fun requireAudioOutputStream(timestamp: Long): OutputStream
-    abstract suspend fun requireAudioFileBitItNotExits(timestamp: Long): File
     abstract suspend fun processed(timestamp: Long)
     /**
      * @exception NoSuchFileException
      */
     abstract suspend fun getScreenData(timestamp: Long): Result<ByteArray>
     protected val imageDir: File = File(get<IPluginContext>(IPluginContext::class.java).getPluginDir(pluginId), "ScreenImages").apply {
+        if (!exists()) mkdirs()
+    }
+    protected val audioDir: File = File(get<IPluginContext>(IPluginContext::class.java).getPluginDir(pluginId), "Audios").apply {
         if (!exists()) mkdirs()
     }
     protected fun mark(timestamp: Long, mark: String) = get<IPluginContext>(IPluginContext::class.java).addMark(timestamp, mark)

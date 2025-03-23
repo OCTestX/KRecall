@@ -122,4 +122,8 @@ object DataDB {
     fun appendOCRData(timestamp: Long, data: String) {
         dataDBQueries.appendOCRData(data, timestamp)
     }
+
+    fun getLeastTimestamp(): Long? {
+        return dataDBQueries.getLeastTimestamp().executeAsOneOrNull()
+    }
 }

@@ -1,6 +1,7 @@
 package io.github.octestx.krecall.plugins
 
 import io.github.octestx.krecall.plugins.basic.PluginBasic
+import io.github.octestx.krecall.plugins.captureaudio.CaptureMicByJavaSoundPlugin
 import io.github.octestx.krecall.plugins.capturescreen.CaptureScreenByAwtRobotPlugin
 import io.github.octestx.krecall.plugins.capturescreen.CaptureScreenByKDESpectaclePlugin
 import io.github.octestx.krecall.plugins.capturescreen.CaptureScreenByWinPowerShellPlugin
@@ -22,5 +23,9 @@ actual fun getPlatformInnerPlugins(): Set<PluginBasic> {
         OCRByZhiPuPlugin(),
 
         OTStoragePlugin(),
+
+        CaptureMicByJavaSoundPlugin(),
+
+        //TODO STT
     )
 }

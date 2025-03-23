@@ -68,14 +68,18 @@ kotlin {
             implementation("io.github.vinceglb:filekit-dialogs-compose:0.10.0-beta01")
             implementation("io.github.vinceglb:filekit-coil:0.10.0-beta01")
 
+            implementation("io.github.alexzhirkevich:compottie:2.0.0-rc04")
+            implementation("io.github.alexzhirkevich:compottie-dot:2.0.0-rc04")
+
             implementation("dev.hydraulic.conveyor:conveyor-control:1.1")
         }
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutines.swing)
             implementation("app.cash.sqldelight:sqlite-driver:2.0.2")
-            implementation("ai.djl:api:0.20.0")
-            implementation("ai.djl.paddlepaddle:paddlepaddle-model-zoo:0.20.0")
+//            implementation("ai.djl:api:0.20.0")
+//            implementation("ai.djl.paddlepaddle:paddlepaddle-model-zoo:0.20.0")
+            implementation("com.alphacephei:vosk:0.3.45")
         }
     }
 }

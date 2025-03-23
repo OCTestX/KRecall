@@ -1,10 +1,7 @@
 package io.github.octestx.krecall.plugins
 
 import io.github.kotlin.fibonacci.utils.OS
-import io.github.octestx.krecall.plugins.basic.AbsCaptureScreenPlugin
-import io.github.octestx.krecall.plugins.basic.AbsOCRPlugin
-import io.github.octestx.krecall.plugins.basic.AbsStoragePlugin
-import io.github.octestx.krecall.plugins.basic.PluginBasic
+import io.github.octestx.krecall.plugins.basic.*
 import io.github.octestx.krecall.repository.ConfigManager
 import io.klogging.noCoLogger
 import kotlinx.coroutines.CoroutineScope
@@ -29,13 +26,17 @@ object PluginManager {
     val storagePlugin: StateFlow<Result<AbsStoragePlugin>> get() = _storagePlugin
     private val _ocrPlugin: MutableStateFlow<Result<AbsOCRPlugin>> = MutableStateFlow(Result.failure(Exception("Plugin not loaded")))
     val ocrPlugin: StateFlow<Result<AbsOCRPlugin>> get() = _ocrPlugin
+    private val _captureAudioPlugin: MutableStateFlow<Result<AbsCaptureAudioPlugin>> = MutableStateFlow(Result.failure(Exception("Plugin not loaded")))
+    val captureAudioPlugin: StateFlow<Result<AbsCaptureAudioPlugin>> get() = _captureAudioPlugin
+    private val _sttPlugin: MutableStateFlow<Result<AbsSTTPlugin>> = MutableStateFlow(Result.failure(Exception("Plugin not loaded")))
+    val sttPlugin: StateFlow<Result<AbsSTTPlugin>> get() = _sttPlugin
 
     private val _needJumpConfigUI: MutableStateFlow<Boolean> = MutableStateFlow(false)
 
     val needJumpConfigUI: StateFlow<Boolean> get() = _needJumpConfigUI
 
     suspend fun init() {
-        ologger.info { "InitPlugins" }
+        ologger.info { "InitPluginManager" }
         loadPlugins()
         selectConfigFromConfigFile()
         createAllPluginsInitializedListenerFlow()
@@ -55,10 +56,13 @@ object PluginManager {
                 is AbsCaptureScreenPlugin -> _availableCaptureScreenPlugins[plugin.pluginId] = plugin
                 is AbsStoragePlugin -> _availableStoragePlugins[plugin.pluginId] = plugin
                 is AbsOCRPlugin -> _availableOCRPlugins[plugin.pluginId] = plugin
+                is AbsCaptureAudioPlugin -> _availableCaptureAudioPlugins[plugin.pluginId] = plugin
+                is AbsSTTPlugin -> _availableSTTPlugins[plugin.pluginId] = plugin
                 else -> _allOtherPlugin[plugin.pluginId] = plugin
             }
         }
         allPlugin = plugins
+        ologger.info { "LoadPlugins" }
     }
 
     private fun selectConfigFromConfigFile() {
@@ -75,6 +79,14 @@ object PluginManager {
             val id = config.ocrPluginId ?: availableOCRPlugins.keys.firstOrNull()
             (allPlugin[id]!! as AbsOCRPlugin).apply { selected() }
         }
+        val captureAudioPlugin = kotlin.runCatching {
+            val id = config.captureAudioPluginId ?: availableCaptureAudioPlugins.keys.firstOrNull()
+            (allPlugin[id]!! as AbsCaptureAudioPlugin).apply { selected() }
+        }
+        val sttPlugin = kotlin.runCatching {
+            val id = config.sttPluginId ?: availableSTTPlugins.keys.firstOrNull()
+            (allPlugin[id]!! as AbsSTTPlugin).apply { selected() }
+        }
         if (captureScreenPlugin.isFailure || storagePlugin.isFailure || ocrPlugin.isFailure) {
             val errorMessage = """
                 Plugins not loaded
@@ -82,16 +94,23 @@ object PluginManager {
                     captureScreenPlugin: ${config.captureScreenPluginId}
                     storagePluginId: ${config.storagePluginId}
                     ocrPluginId: ${config.ocrPluginId}
+                    captureAudioPluginId: ${config.captureAudioPluginId}
+                    sttPluginId: ${config.sttPluginId}
                 loadingPluginsException:
                     captureScreenPlugin: ${captureScreenPlugin.exceptionOrNull()?.stackTrace}
                     storagePlugin: ${storagePlugin.exceptionOrNull()?.stackTrace}
                     ocrPlugin: ${ocrPlugin.exceptionOrNull()?.stackTrace}
+                    captureAudioPlugin: ${captureAudioPlugin.exceptionOrNull()?.stackTrace}
+                    sttPlugin: ${sttPlugin.exceptionOrNull()?.stackTrace}
             """.trimIndent()
             ologger.error { errorMessage }
         }
         _captureScreenPlugin.value = captureScreenPlugin
         _storagePlugin.value = storagePlugin
         _ocrPlugin.value = ocrPlugin
+        _captureAudioPlugin.value = captureAudioPlugin
+        _sttPlugin.value = sttPlugin
+        ologger.info { "SelectConfigFromConfigFile" }
     }
 
     private val _allOtherPlugin = mutableMapOf<String, PluginBasic>()
@@ -139,7 +158,7 @@ object PluginManager {
 
     private val _availableOCRPlugins = mutableMapOf<String, AbsOCRPlugin>()
     val availableOCRPlugins: Map<String, AbsOCRPlugin> = _availableOCRPlugins
-    fun setScreenLanguageConverterPlugin(pluginId: String) {
+    fun setOCRPlugin(pluginId: String) {
         if (pluginId == getOCRPlugin().getOrNull()?.pluginId) {
             return
         }
@@ -156,6 +175,44 @@ object PluginManager {
         return _ocrPlugin.value
     }
 
+    private val _availableCaptureAudioPlugins = mutableMapOf<String, AbsCaptureAudioPlugin>()
+    val availableCaptureAudioPlugins: Map<String, AbsCaptureAudioPlugin> = _availableCaptureAudioPlugins
+    fun setCaptureAudioPlugin(pluginId: String) {
+        if (pluginId == getCaptureAudioPlugin().getOrNull()?.pluginId) {
+            return
+        }
+        // 如果插件已经初始化，则不切换
+        if (getCaptureAudioPlugin().getOrNull()?.initialized?.value == true) return
+        if (availableCaptureAudioPlugins.containsKey(pluginId)) {
+            ConfigManager.savePluginConfig(ConfigManager.pluginConfig.copy(captureAudioPluginId = pluginId))
+            getCaptureAudioPlugin().getOrNull()?.unselected()
+            _captureAudioPlugin.value = kotlin.runCatching { (availableCaptureAudioPlugins[pluginId]!!).apply { selected() } }
+            saveConfig()
+        }
+    }
+    fun getCaptureAudioPlugin(): Result<AbsCaptureAudioPlugin> {
+        return _captureAudioPlugin.value
+    }
+
+    private val _availableSTTPlugins = mutableMapOf<String, AbsSTTPlugin>()
+    val availableSTTPlugins: Map<String, AbsSTTPlugin> = _availableSTTPlugins
+    fun setSTTPlugin(pluginId: String) {
+        if (pluginId == getSTTPlugin().getOrNull()?.pluginId) {
+            return
+        }
+        // 如果插件已经初始化，则不切换
+        if (getSTTPlugin().getOrNull()?.initialized?.value == true) return
+        if (availableSTTPlugins.containsKey(pluginId)) {
+            ConfigManager.savePluginConfig(ConfigManager.pluginConfig.copy(sttPluginId = pluginId))
+            getSTTPlugin().getOrNull()?.unselected()
+            _sttPlugin.value = kotlin.runCatching { (availableSTTPlugins[pluginId]!!).apply { selected() } }
+            saveConfig()
+        }
+    }
+    fun getSTTPlugin(): Result<AbsSTTPlugin> {
+        return _sttPlugin.value
+    }
+
     private fun saveConfig() {
         ConfigManager.savePluginConfig(
             ConfigManager.pluginConfig.copy(
@@ -164,18 +221,36 @@ object PluginManager {
                 ocrPluginId = getOCRPlugin().getOrNull()?.pluginId
             )
         )
+        ologger.info { "SaveConfig" }
     }
 
     fun initAllPlugins() {
-        getCaptureScreenPlugin().getOrThrow().tryInit().apply {
+        val captureScreenPlugin = getCaptureAudioPlugin().getOrNull()
+        val storagePlugin = getStoragePlugin().getOrNull()
+        val ocrPlugin = getOCRPlugin().getOrNull()
+        val captureAudioPlugin = getCaptureAudioPlugin().getOrNull()
+        val sttPlugin = getSTTPlugin().getOrNull()
+        if (captureScreenPlugin == null || storagePlugin == null || ocrPlugin == null || captureAudioPlugin == null || sttPlugin == null) {
+            _needJumpConfigUI.value = true
+            return
+        }
+        captureScreenPlugin.tryInit().apply {
             if (this is PluginBasic.InitResult.Failed || this is PluginBasic.InitResult.RequestConfigUI) _needJumpConfigUI.value = true
             if (this is PluginBasic.InitResult.Failed) throw this.exception
         }
-        getStoragePlugin().getOrThrow().tryInit().apply {
+        storagePlugin.tryInit().apply {
             if (this is PluginBasic.InitResult.Failed || this is PluginBasic.InitResult.RequestConfigUI) _needJumpConfigUI.value = true
             if (this is PluginBasic.InitResult.Failed) throw this.exception
         }
-        getOCRPlugin().getOrThrow().tryInit().apply {
+        ocrPlugin.tryInit().apply {
+            if (this is PluginBasic.InitResult.Failed || this is PluginBasic.InitResult.RequestConfigUI) _needJumpConfigUI.value = true
+            if (this is PluginBasic.InitResult.Failed) throw this.exception
+        }
+        captureAudioPlugin.tryInit().apply {
+            if (this is PluginBasic.InitResult.Failed || this is PluginBasic.InitResult.RequestConfigUI) _needJumpConfigUI.value = true
+            if (this is PluginBasic.InitResult.Failed) throw this.exception
+        }
+        sttPlugin.tryInit().apply {
             if (this is PluginBasic.InitResult.Failed || this is PluginBasic.InitResult.RequestConfigUI) _needJumpConfigUI.value = true
             if (this is PluginBasic.InitResult.Failed) throw this.exception
         }
@@ -189,5 +264,6 @@ object PluginManager {
         ) { plugins ->
             plugins.all { it }
         }.stateIn(CoroutineScope(Dispatchers.IO))
+        ologger.info { "CreateAllPluginsInitializedListenerFlow" }
     }
 }

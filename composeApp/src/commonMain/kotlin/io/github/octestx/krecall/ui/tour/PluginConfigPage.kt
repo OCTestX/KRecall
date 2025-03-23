@@ -2,6 +2,7 @@ package io.github.octestx.krecall.ui.tour
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -19,15 +20,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import io.github.alexzhirkevich.compottie.*
 import io.github.kotlin.fibonacci.ui.toast
 import io.github.kotlin.fibonacci.ui.utils.ToastModel
+import io.github.octestx.krecall.composeapp.generated.resources.Res
 import io.github.octestx.krecall.exceptions.ConfigurationNotSavedException
 import io.github.octestx.krecall.plugins.PluginManager
-import io.github.octestx.krecall.plugins.basic.AbsCaptureScreenPlugin
-import io.github.octestx.krecall.plugins.basic.AbsOCRPlugin
-import io.github.octestx.krecall.plugins.basic.AbsStoragePlugin
-import io.github.octestx.krecall.plugins.basic.PluginBasic
+import io.github.octestx.krecall.plugins.basic.*
 import io.klogging.noCoLogger
+import org.jetbrains.compose.resources.ExperimentalResourceApi
 import ui.core.AbsUIPage
 
 class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPage.PluginConfigState, PluginConfigPage.PluginConfigAction>(model) {
@@ -57,7 +58,7 @@ class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPa
                 val scrollState = rememberLazyListState()
                 LazyColumn(state = scrollState) {
                     item {
-                        PluginCard(state.getScreenPlugin, state.availableGetScreenPlugins, "截屏插件") {
+                        PluginCard(state.captureScreenPlugin, state.availableCaptureScreenPlugins, "截屏插件") {
                             state.action(PluginConfigAction.SelectGetScreenPlugin(it))
                         }
                     }
@@ -67,7 +68,17 @@ class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPa
                         }
                     }
                     item {
-                        PluginCard(state.screenLanguageConverterPlugin, state.availableScreenLanguageConverterPlugins, "图片转换插件") {
+                        PluginCard(state.ocrPlugin, state.availableOCRPlugins, "OCR插件") {
+                            state.action(PluginConfigAction.SelectScreenLanguageConverterPlugin(it))
+                        }
+                    }
+                    item {
+                        PluginCard(state.captureAudioPlugin, state.availableCaptureAudioPlugins, "音频捕获插件") {
+                            state.action(PluginConfigAction.SelectScreenLanguageConverterPlugin(it))
+                        }
+                    }
+                    item {
+                        PluginCard(state.sttPlugin, state.availableSTTPlugins, "语音转文字(STT)插件") {
                             state.action(PluginConfigAction.SelectScreenLanguageConverterPlugin(it))
                         }
                     }
@@ -84,6 +95,7 @@ class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPa
             }
         }
     }
+    @OptIn(ExperimentalResourceApi::class)
     @Composable
     private fun <P: PluginBasic> PluginCard(pluginData: Result<P>, availablePlugins: List<P>, type: String, selectedPlugin: (pluginId: String) -> Unit) {
         Column {
@@ -126,12 +138,33 @@ class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPa
                         }
                     }
                     AnimatedContent(err) { err ->
-                        when (err) {
-                            is ConfigurationNotSavedException -> {
-                                Text("配置未保存: ${err.message}", modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primary), color = MaterialTheme.colorScheme.onPrimary)
-                            }
-                            is IllegalArgumentException -> {
-                                Text("参数错误: ${err.message}", modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primary), color = MaterialTheme.colorScheme.onPrimary)
+                        if (err != null) {
+                            Row {
+                                val composition by rememberLottieComposition {
+                                    LottieCompositionSpec.DotLottie(
+                                        Res.readBytes("files/warning.lottie")
+                                    )
+                                }
+
+                                Image(
+                                    painter = rememberLottiePainter(
+                                        composition = composition,
+                                        iterations = Compottie.IterateForever
+                                    ),
+                                    contentDescription = "Lottie animation",
+                                    modifier = Modifier.size(32.dp)
+                                )
+                                when (err) {
+                                    is ConfigurationNotSavedException -> {
+                                        Text("配置未保存: ${err.message}", modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primary), color = MaterialTheme.colorScheme.onPrimary)
+                                    }
+                                    is IllegalArgumentException -> {
+                                        Text("参数错误: ${err.message}", modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primary), color = MaterialTheme.colorScheme.onPrimary)
+                                    }
+                                    else -> {
+                                        Text("插件运行时异常: ${err.message}", modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primary), color = MaterialTheme.colorScheme.onPrimary)
+                                    }
+                                }
                             }
                         }
                     }
@@ -144,8 +177,8 @@ class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPa
             }
             LaunchedEffect(pluginData) {
                 pluginData.onFailure {
-                    ologger.error(it) { "插件异常: ${it.message}" }
-                    toast.applyShow(ToastModel("插件异常: ${it.message}", type = ToastModel.Type.Error))
+                    ologger.error(it) { "插件异常[$type]: ${it.message}" }
+                    toast.applyShow(ToastModel("插件异常[$type]: ${it.message}", type = ToastModel.Type.Error))
                 }
             }
             LaunchedEffect(err) {
@@ -165,12 +198,16 @@ class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPa
         data class SelectScreenLanguageConverterPlugin(val pluginId: String): PluginConfigAction()
     }
     data class PluginConfigState(
-        val getScreenPlugin: Result<AbsCaptureScreenPlugin>,
-        val availableGetScreenPlugins: List<AbsCaptureScreenPlugin>,
+        val captureScreenPlugin: Result<AbsCaptureScreenPlugin>,
+        val availableCaptureScreenPlugins: List<AbsCaptureScreenPlugin>,
         val storagePlugin: Result<AbsStoragePlugin>,
         val availableStoragePlugins: List<AbsStoragePlugin>,
-        val screenLanguageConverterPlugin: Result<AbsOCRPlugin>,
-        val availableScreenLanguageConverterPlugins: List<AbsOCRPlugin>,
+        val ocrPlugin: Result<AbsOCRPlugin>,
+        val availableOCRPlugins: List<AbsOCRPlugin>,
+        val captureAudioPlugin: Result<AbsCaptureAudioPlugin>,
+        val availableCaptureAudioPlugins: List<AbsCaptureAudioPlugin>,
+        val sttPlugin: Result<AbsSTTPlugin>,
+        val availableSTTPlugins: List<AbsSTTPlugin>,
         val action: (PluginConfigAction) -> Unit,
     ): AbsUIState<PluginConfigAction>()
 
@@ -185,6 +222,10 @@ class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPa
                 PluginManager.availableStoragePlugins.values.toList(),
                 PluginManager.ocrPlugin.collectAsState().value,
                 PluginManager.availableOCRPlugins.values.toList(),
+                PluginManager.captureAudioPlugin.collectAsState().value,
+                PluginManager.availableCaptureAudioPlugins.values.toList(),
+                PluginManager.sttPlugin.collectAsState().value,
+                PluginManager.availableSTTPlugins.values.toList()
             ) {
                 actionExecute(params, it)
             }
@@ -209,7 +250,7 @@ class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPa
                     PluginManager.setCaptureScreenPlugin(action.pluginId)
                 }
                 is PluginConfigAction.SelectScreenLanguageConverterPlugin -> {
-                    PluginManager.setScreenLanguageConverterPlugin(action.pluginId)
+                    PluginManager.setOCRPlugin(action.pluginId)
                 }
                 is PluginConfigAction.SelectStoragePlugin -> {
                     PluginManager.setStoragePlugin(action.pluginId)

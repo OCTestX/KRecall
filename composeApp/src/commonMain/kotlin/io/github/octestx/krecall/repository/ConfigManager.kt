@@ -71,5 +71,7 @@ object ConfigManager {
         val captureScreenPluginId: String? = null,
         val storagePluginId: String? = null,
         val ocrPluginId: String? = null,
+        val captureAudioPluginId: String? = null,
+        val sttPluginId: String? = null,
     )
 }

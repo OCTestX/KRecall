@@ -18,3 +18,15 @@ More information see: https://conveyor.hydraulic.dev/17.0/tutorial/hare/jvm/#__t
 
 `conveyor make site`
 
+# Use
+
+## About Capture audio
+
+在捕获音频时只写入WAV 头
+
+距离wav完整文件还需要
+
+``` kotlin
+// 更新 WAV 头中的长度信息
+WavHeaderUtil.updateHeader(file)
+```

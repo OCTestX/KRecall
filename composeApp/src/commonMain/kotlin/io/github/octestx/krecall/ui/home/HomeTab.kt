@@ -6,7 +6,10 @@ import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.BitmapPainter
@@ -29,6 +32,7 @@ class HomeTab(model: HomePageModel): AbsUIPage<Any?, HomeTab.HomePageState, Home
         Column {
             CaptureScreenController(state)
             ProcessImageController(state)
+            CaptureAudioController(state)
             Row {
                 Text("theNowMode")
                 Switch(state.theNowMode, { state.action(HomePageAction.ChangeTheNowMode(!state.theNowMode)) })
@@ -81,6 +85,15 @@ class HomeTab(model: HomePageModel): AbsUIPage<Any?, HomeTab.HomePageState, Home
             if (processingData) {
                 CircularProgressIndicator()
             }
+        }
+    }
+
+    @Composable
+    private fun CaptureAudioController(state: HomePageState) {
+        Row() {
+            val collectingAudio by GlobalRecalling.collectingAudio.collectAsState()
+            Text("CollectingAudio")
+            Switch(collectingAudio, { state.action(HomePageAction.ChangeCollectingScreen(!collectingAudio)) })
         }
     }
 
