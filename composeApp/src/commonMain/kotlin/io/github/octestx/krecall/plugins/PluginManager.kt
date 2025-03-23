@@ -236,23 +236,23 @@ object PluginManager {
         }
         captureScreenPlugin.tryInit().apply {
             if (this is PluginBasic.InitResult.Failed || this is PluginBasic.InitResult.RequestConfigUI) _needJumpConfigUI.value = true
-            if (this is PluginBasic.InitResult.Failed) throw this.exception
+            if (this is PluginBasic.InitResult.Failed) ologger.error(exception) { "Try to init CaptureScreenPlugin catch: ${exception.message}" }
         }
         storagePlugin.tryInit().apply {
             if (this is PluginBasic.InitResult.Failed || this is PluginBasic.InitResult.RequestConfigUI) _needJumpConfigUI.value = true
-            if (this is PluginBasic.InitResult.Failed) throw this.exception
+            if (this is PluginBasic.InitResult.Failed) ologger.error(exception) { "Try to init StoragePlugin catch: ${exception.message}" }
         }
         ocrPlugin.tryInit().apply {
             if (this is PluginBasic.InitResult.Failed || this is PluginBasic.InitResult.RequestConfigUI) _needJumpConfigUI.value = true
-            if (this is PluginBasic.InitResult.Failed) throw this.exception
+            if (this is PluginBasic.InitResult.Failed) ologger.error(exception) { "Try to init OCRPlugin catch: ${exception.message}" }
         }
         captureAudioPlugin.tryInit().apply {
             if (this is PluginBasic.InitResult.Failed || this is PluginBasic.InitResult.RequestConfigUI) _needJumpConfigUI.value = true
-            if (this is PluginBasic.InitResult.Failed) throw this.exception
+            if (this is PluginBasic.InitResult.Failed) ologger.error(exception) { "Try to init CaptureAudioPlugin catch: ${exception.message}" }
         }
         sttPlugin.tryInit().apply {
             if (this is PluginBasic.InitResult.Failed || this is PluginBasic.InitResult.RequestConfigUI) _needJumpConfigUI.value = true
-            if (this is PluginBasic.InitResult.Failed) throw this.exception
+            if (this is PluginBasic.InitResult.Failed) ologger.error(exception) { "Try to init STTPlugin catch: ${exception.message}" }
         }
     }
     lateinit var allPluginsInitialized: StateFlow<Boolean> private set

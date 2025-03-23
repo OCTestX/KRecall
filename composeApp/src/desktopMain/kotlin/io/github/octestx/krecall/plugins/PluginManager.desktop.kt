@@ -7,6 +7,7 @@ import io.github.octestx.krecall.plugins.capturescreen.CaptureScreenByKDESpectac
 import io.github.octestx.krecall.plugins.capturescreen.CaptureScreenByWinPowerShellPlugin
 import io.github.octestx.krecall.plugins.impl.ocr.OCRByZhiPuPlugin
 import io.github.octestx.krecall.plugins.impl.storage.OTStoragePlugin
+import io.github.octestx.krecall.plugins.stt.VoskSTTPlugin
 
 actual fun getPlatformExtPlugins(): Set<PluginBasic> {
     //TODO
@@ -26,6 +27,6 @@ actual fun getPlatformInnerPlugins(): Set<PluginBasic> {
 
         CaptureMicByJavaSoundPlugin(),
 
-        //TODO STT
+        VoskSTTPlugin()
     )
 }

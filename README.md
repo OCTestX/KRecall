@@ -30,3 +30,6 @@ More information see: https://conveyor.hydraulic.dev/17.0/tutorial/hare/jvm/#__t
 // 更新 WAV 头中的长度信息
 WavHeaderUtil.updateHeader(file)
 ```
+
+## About STT
+https://alphacephei.com/vosk/models

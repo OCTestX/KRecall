@@ -71,6 +71,8 @@ kotlin {
             implementation("io.github.alexzhirkevich:compottie:2.0.0-rc04")
             implementation("io.github.alexzhirkevich:compottie-dot:2.0.0-rc04")
 
+            implementation("com.alphacephei:vosk:0.3.45") // Vosk 核心库
+
             implementation("dev.hydraulic.conveyor:conveyor-control:1.1")
         }
         desktopMain.dependencies {

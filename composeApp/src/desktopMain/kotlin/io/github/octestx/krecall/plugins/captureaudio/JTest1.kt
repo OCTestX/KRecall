@@ -5,7 +5,7 @@ import javax.sound.sampled.AudioFormat
 import javax.sound.sampled.AudioSystem
 import javax.sound.sampled.TargetDataLine
 
-object WavHeaderUtil {
+object WavHeaderUtil2 {
     // 写入 WAV 文件头（占位）
     fun writeHeader(dos: DataOutputStream, format: AudioFormat) {
         // RIFF 头

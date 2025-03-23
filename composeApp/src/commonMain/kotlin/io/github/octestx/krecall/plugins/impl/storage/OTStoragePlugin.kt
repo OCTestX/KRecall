@@ -7,6 +7,8 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
+import io.github.kotlin.fibonacci.ui.toast
+import io.github.kotlin.fibonacci.ui.utils.ToastModel
 import io.github.kotlin.fibonacci.utils.OS
 import io.github.kotlin.fibonacci.utils.linkFile
 import io.github.kotlin.fibonacci.utils.ojson
@@ -57,7 +59,9 @@ class OTStoragePlugin: AbsStoragePlugin(pluginId = "OTStoragePlugin") {
     }
 
     override suspend fun requireAudioOutputStream(timestamp: Long): OutputStream {
-        TODO("Not yet implemented")
+        val f = getAudioFile(timestamp)
+        if (f.exists()) f.delete()
+        return f.outputStream()
     }
 
     override suspend fun processed(timestamp: Long) {
@@ -190,6 +194,7 @@ class OTStoragePlugin: AbsStoragePlugin(pluginId = "OTStoragePlugin") {
                         }
                         savedConfig.value = true
                         ologger.info { "Saved" }
+                        toast.applyShow("Saved", type = ToastModel.Type.Success)
                     }
                 } catch (e: Throwable) {
                     ologger.error(e)

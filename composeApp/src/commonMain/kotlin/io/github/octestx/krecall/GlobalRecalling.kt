@@ -17,7 +17,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
-import java.io.BufferedOutputStream
 
 object GlobalRecalling {
     private val ologger = noCoLogger<GlobalRecalling>()
@@ -86,28 +85,29 @@ object GlobalRecalling {
                 ologger.info { "RECEIVE AUDIO DATA: ${data.size}" }
             }
         }
-        var currentCaptureAudioOutputStream: BufferedOutputStream? = null
-        val collectingAudioJob = ioscope.launch {
-            try {
-                val captureAudio = PluginManager.getCaptureAudioPlugin().getOrThrow()
-                captureAudio.provideReceiver(audioDataReceiver)
-                while (true) {
-                    val leastTimestamp = DataDB.getLeastTimestamp() ?: continue
-                    if (collectingAudio.value && captureAudio.isCapturing.not()) {
-                        ologger.info { "CollectingAudioJobLoop" }
-                        val storage = PluginManager.getStoragePlugin().getOrThrow()
-                        val output = storage.requireAudioOutputStream(leastTimestamp)
-                        val outputStream = BufferedOutputStream(output)
-                        currentCaptureAudioOutputStream = outputStream
-                        captureAudio.start(outputStream)
-                        // TODO change delay time
-                        delay(150)
-                    }
-                }
-            } catch (e: Exception) {
-                ologger.error(e) { "Collecting Fail!" }
-            }
-        }
+        //TODO capture audio
+//        var currentCaptureAudioOutputStream: BufferedOutputStream? = null
+//        val collectingAudioJob = ioscope.launch {
+//            try {
+//                val captureAudio = PluginManager.getCaptureAudioPlugin().getOrThrow()
+//                captureAudio.provideReceiver(audioDataReceiver)
+//                while (true) {
+//                    val leastTimestamp = DataDB.getLeastTimestamp() ?: continue
+//                    if (collectingAudio.value && captureAudio.isCapturing.not()) {
+//                        ologger.info { "CollectingAudioJobLoop" }
+//                        val storage = PluginManager.getStoragePlugin().getOrThrow()
+//                        val output = storage.requireAudioOutputStream(leastTimestamp)
+//                        val outputStream = BufferedOutputStream(output)
+//                        currentCaptureAudioOutputStream = outputStream
+//                        captureAudio.start(outputStream)
+//                        // TODO change delay time
+//                        delay(150)
+//                    }
+//                }
+//            } catch (e: Exception) {
+//                ologger.error(e) { "Collecting Fail!" }
+//            }
+//        }
         val processingDataJob = ioscope.launch {
             val needProcessData = DataDB.listNotProcessedData()
             for (data in needProcessData) {
@@ -131,12 +131,14 @@ object GlobalRecalling {
                                 DataDB.appendData(timestamp, data.result)
                                 //让音频捕获插件暂停换文件, 在collectingAudioJob中, 当它判断插件被暂停了, 会重新启动并携带新文件
                                 val captureAudioPlugin = PluginManager.getCaptureAudioPlugin().getOrNull()
-                                if (captureAudioPlugin != null) {
-                                    currentCaptureAudioOutputStream?.close()
-                                    captureAudioPlugin.pause()
-                                }
+//                                if (captureAudioPlugin != null) {
+//                                    currentCaptureAudioOutputStream?.close()
+//                                    captureAudioPlugin.pause()
+//                                }
                                 storage.processed(timestamp)
                                 DataDB.processed(timestamp)
+                                errorTimestamp.remove(timestamp)
+                                errorTimestampCount.value = errorTimestamp.size
                             } else if (data is AIResult.Failed<String>) {
                                 DataDB.happenError(timestamp, data)
                                 errorTimestamp[timestamp] = data
