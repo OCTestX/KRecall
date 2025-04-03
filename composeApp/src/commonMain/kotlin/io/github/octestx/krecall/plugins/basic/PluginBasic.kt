@@ -16,8 +16,8 @@ abstract class PluginBasic(val pluginId: String) {
     abstract fun unselected()
     @Composable
     abstract fun UI()
-    protected abstract fun tryInitInner(): InitResult
-    fun tryInit(): InitResult {
+    protected abstract suspend fun tryInitInner(): InitResult
+    suspend fun tryInit(): InitResult {
         return if (initialized.value.not()) tryInitInner()
         else InitResult.Success
     }

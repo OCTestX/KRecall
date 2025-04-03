@@ -206,7 +206,7 @@ class OTStoragePlugin: AbsStoragePlugin(pluginId = "OTStoragePlugin") {
     }
 
 
-    override fun tryInitInner(): InitResult {
+    override suspend fun tryInitInner(): InitResult {
         ologger.info { "TryInit" }
         if (savedConfig.value.not()) {
             return InitResult.Failed(ConfigurationNotSavedException())

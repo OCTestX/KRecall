@@ -23,14 +23,15 @@ object DataDB {
         driver.execute(
             null, """
                 CREATE TABLE IF NOT EXISTS "DataItem" (
-                    "screenId"	INTEGER NOT NULL DEFAULT 0,
-                    "timestamp"	INTEGER NOT NULL,
-                    "data"	TEXT DEFAULT NULL,
-                    "status"	INTEGER NOT NULL DEFAULT 0,
-                    "error"	TEXT DEFAULT NULL,
-                    "ocr"	TEXT DEFAULT NULL,
-                    "mark"	TEXT NOT NULL,
-                    PRIMARY KEY("timestamp")
+                	"timestamp"	INTEGER NOT NULL,
+                	"screenId"	INTEGER NOT NULL DEFAULT 0,
+                	"ocr"	TEXT DEFAULT NULL,
+                	"status"	INTEGER NOT NULL DEFAULT 0,
+                	"error"	TEXT DEFAULT NULL,
+                	"mark"	TEXT NOT NULL,
+                	"appId"	TEXT DEFAULT NULL,
+                	"windowTitle"	TEXT DEFAULT NULL,
+                	PRIMARY KEY("timestamp")
                 );
             """.trimIndent(), 0
         )
@@ -40,10 +41,6 @@ object DataDB {
 
     fun listAllData(): List<DataItem> {
         return dataDBQueries.listAllData().executeAsList()
-    }
-
-    fun listDataWithTimestampRange(startTimestamp: Long, endTimestamp: Long): List<DataItem> {
-        return dataDBQueries.listDataWithTimestampRange(startTimestamp, endTimestamp).executeAsList()
     }
 
     fun getData(timestamp: Long): DataItem? {
@@ -82,12 +79,12 @@ object DataDB {
         }?.toList() ?: emptyList()
     }
 
-    fun addNewRecord(timestamp: Long) {
-        dataDBQueries.addNewRecord(timestamp)
+    fun addNewRecord(screenId: Long, timestamp: Long, mark: String, appId: String, windowTitle: String) {
+        dataDBQueries.addNewRecord(screenId, timestamp, mark, appId, windowTitle)
     }
 
     fun appendData(timestamp: Long, data: String) {
-        dataDBQueries.appendData(data, timestamp)
+        dataDBQueries.setData(data, timestamp)
     }
 
     fun processed(timestamp: Long) {
@@ -95,15 +92,25 @@ object DataDB {
     }
 
     fun addMark(timestamp: Long, mark: String) {
+        //判断mark是否包含意外换行
+        if (mark.contains("\n")) {
+            ologger.warn("mark contains unexpected newline: $mark")
+            throw IllegalArgumentException("mark contains unexpected newline: $mark")
+        }
         val data = dataDBQueries.getData(timestamp).executeAsOneOrNull() ?: return
         val newMark = data.mark + "\n" + mark
-        dataDBQueries.markScreenData(newMark, timestamp)
+        dataDBQueries.setMarkScreenData(newMark, timestamp)
     }
 
     fun removeMark(timestamp: Long, mark: String) {
+        //判断mark是否包含意外换行
+        if (mark.contains("\n")) {
+            ologger.warn("mark contains unexpected newline: $mark")
+            throw IllegalArgumentException("mark contains unexpected newline: $mark")
+        }
         val data = dataDBQueries.getData(timestamp).executeAsOneOrNull() ?: return
         data.mark.split("\n").filter { it != mark }.joinToString("\n").let {
-            dataDBQueries.markScreenData(it, timestamp)
+            dataDBQueries.setMarkScreenData(it, timestamp)
         }
     }
 
@@ -119,8 +126,12 @@ object DataDB {
         dataDBQueries.happenError(exceptionSerializableOjson.encodeToString(error), timestamp)
     }
 
+    fun happenError(timestamp: Long, error: Exception) {
+        dataDBQueries.happenError(exceptionSerializableOjson.encodeToString(error), timestamp)
+    }
+
     fun appendOCRData(timestamp: Long, data: String) {
-        dataDBQueries.appendOCRData(data, timestamp)
+        dataDBQueries.setOCRData(data, timestamp)
     }
 
     fun getLeastTimestamp(): Long? {

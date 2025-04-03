@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
 import io.github.kotlin.fibonacci.utils.OS
 import io.github.octestx.krecall.plugins.basic.AbsCaptureScreenPlugin
+import io.github.octestx.krecall.plugins.basic.WindowInfo
 import io.klogging.noCoLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,11 +29,11 @@ class CaptureScreenByWinPowerShellPlugin: AbsCaptureScreenPlugin(pluginId = "Cap
     private val ologger = noCoLogger<CaptureScreenByWinPowerShellPlugin>()
     override suspend fun supportOutputToStream(): Boolean = false
 
-    override suspend fun getScreen(outputStream: OutputStream) {
+    override suspend fun getScreen(outputStream: OutputStream): WindowInfo {
         throw UnsupportedOperationException()
     }
 
-    override suspend fun getScreen(outputFileBitItNotExits: File) {
+    override suspend fun getScreen(outputFileBitItNotExits: File): WindowInfo {
         withContext(Dispatchers.IO) {
             ologger.info { "getScreen: $outputFileBitItNotExits" }
 
@@ -76,6 +77,44 @@ class CaptureScreenByWinPowerShellPlugin: AbsCaptureScreenPlugin(pluginId = "Cap
                 ologger.error(err) { "Screenshot failed" }
                 throw err
             }
+            getCurrentWindowInfo()
+        }
+        return getCurrentWindowInfo()
+    }
+
+    private fun getCurrentWindowInfo(): WindowInfo {
+        // 执行 PowerShell 获取活动窗口的进程 ID 和标题
+        val f = "\$"
+        val command = """
+        Add-Type -TypeDefinition @'
+        using System;
+        using System.Runtime.InteropServices;
+        using System.Text;
+        public class WindowUtils {
+            [DllImport("user32.dll")]
+            public static extern IntPtr GetForegroundWindow();
+            [DllImport("user32.dll")]
+            public static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+            [DllImport("user32.dll")]
+            public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+        }
+'@
+        ${f}hwnd = [WindowUtils]::GetForegroundWindow()
+        ${f}sb = New-Object Text.StringBuilder 1024
+        [WindowUtils]::GetWindowText(${f}hwnd, ${f}sb, ${f}sb.Capacity) | Out-Null
+        ${f}title = ${f}sb.ToString()
+        ${f}pid = 0
+        [WindowUtils]::GetWindowThreadProcessId(${f}hwnd, [ref]${f}pid) | Out-Null
+        "${f}pid|${f}title"
+    """.trimIndent()
+
+        val process = ProcessBuilder("powershell.exe", "-Command", command).start()
+        val output = process.inputStream.bufferedReader().use {
+            it.readText()
+        }
+
+        return output.split("|").let {
+            WindowInfo(1, appId = it[0], windowTitle = it[1])
         }
     }
 
@@ -117,7 +156,7 @@ class CaptureScreenByWinPowerShellPlugin: AbsCaptureScreenPlugin(pluginId = "Cap
     }
 
 
-    override fun tryInitInner(): InitResult {
+    override suspend fun tryInitInner(): InitResult {
         ologger.info { "TryInit" }
         val e = runBlocking {
             try {

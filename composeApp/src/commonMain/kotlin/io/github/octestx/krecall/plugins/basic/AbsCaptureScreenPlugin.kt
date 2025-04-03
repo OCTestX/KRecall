@@ -14,10 +14,16 @@ abstract class AbsCaptureScreenPlugin(pluginId: String): PluginBasic(pluginId) {
      * @exception UnsupportedOperationException
      * IO
      */
-    abstract suspend fun getScreen(outputStream: OutputStream)
+    abstract suspend fun getScreen(outputStream: OutputStream): WindowInfo
     /**
      * @exception Exception
      * IO
      */
-    abstract suspend fun getScreen(outputFileBitItNotExits: File)
+    abstract suspend fun getScreen(outputFileBitItNotExits: File): WindowInfo
 }
+
+data class WindowInfo(
+    val screenId: Int,
+    val appId: String,
+    val windowTitle: String
+)

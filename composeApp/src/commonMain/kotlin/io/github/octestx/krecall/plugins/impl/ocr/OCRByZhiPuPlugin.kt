@@ -17,6 +17,7 @@ import io.github.octestx.krecall.exceptions.ConfigurationNotSavedException
 import io.github.octestx.krecall.plugins.basic.AIErrorType
 import io.github.octestx.krecall.plugins.basic.AIResult
 import io.github.octestx.krecall.plugins.basic.AbsOCRPlugin
+import io.github.octestx.krecall.plugins.basic.OCRResult
 import io.github.octestx.krecall.plugins.impl.storage.OTStoragePlugin
 import io.klogging.noCoLogger
 import io.ktor.util.*
@@ -57,7 +58,7 @@ class OCRByZhiPuPlugin: AbsOCRPlugin("OCRByZhiPuPlugin") {
         code.kt
     """.trimIndent()
 
-    override suspend fun recognize(screen: ByteArray): AIResult<String> {
+    override suspend fun recognize(screen: ByteArray): OCRResult {
         val imgBase64 = screen.encodeBase64()
 //        val messages: MutableList<ChatMessage> = ArrayList()
 //        val contentList: MutableList<Map<String, Any>> = ArrayList()
@@ -103,16 +104,18 @@ class OCRByZhiPuPlugin: AbsOCRPlugin("OCRByZhiPuPlugin") {
             val completion: ChatCompletion = openAI.chatCompletion(chatCompletionRequest)
             val msg = completion.choices[0].message.content!!
             ologger.info { "ConvertedData: $msg" }
-            return AIResult.Success(msg)
+            return OCRResult(msg)
         } catch (e: Exception) {
             if (e is InvalidRequestException) {
                 val detail = e.error.detail
-                ologger.error(e) { "InvalidRequestException: [detail=$detail]" }
-                return AIResult.Failed(e, getErrorTypeByZhiPuAI(detail))
+                val fail = AIResult.Failed<String>(e, getErrorTypeByZhiPuAI(detail))
+                ologger.error(e) { "InvalidRequestException: [detail=$detail, fail=$fail]" }
+                throw e
             } else {
                 //TODO 错误类型分类
-                ologger.error(e) { "ConvertDataError: ${e.message}" }
-                return AIResult.Failed(e, AIErrorType.UNKNOWN)
+                val fail = AIResult.Failed<String>(e, AIErrorType.UNKNOWN)
+                ologger.error(e) { "ConvertDataError: ${e.message}, fail: $fail" }
+                throw e
             }
         }
     }
@@ -234,7 +237,7 @@ class OCRByZhiPuPlugin: AbsOCRPlugin("OCRByZhiPuPlugin") {
         }
     }
 
-    override fun tryInitInner(): InitResult {
+    override suspend fun tryInitInner(): InitResult {
 //        runBlocking { convert(File("/home/octest/Myself/tmp/Screenshot_20250301_234058.png").readBytes()) }
         val confined = config.apiKey.isNotEmpty() && config.model.isNotEmpty()
         if (savedConfig.value.not()) {

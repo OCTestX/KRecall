@@ -5,10 +5,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.Tray
+import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import io.github.octestx.krecall.composeapp.generated.resources.Res
 import io.github.octestx.krecall.composeapp.generated.resources.icon
-import moe.tlaster.precompose.PreComposeWindow
+import moe.tlaster.precompose.PreComposeApp
+import moe.tlaster.precompose.ProvidePreComposeLocals
 import org.jetbrains.compose.resources.painterResource
 
 fun main() = application {
@@ -16,14 +18,18 @@ fun main() = application {
     val appMainPageModel = remember { AppMainPage.AppMainPageModel() }
     val appMainPage = remember { AppMainPage(appMainPageModel) }
     var windowVisible by remember { mutableStateOf(true) }
-    PreComposeWindow(
+    Window(
         visible = windowVisible,
         onCloseRequest = {
             windowVisible = false
         },
         title = "KRecall",
     ) {
-        appMainPage.Main(Unit)
+        ProvidePreComposeLocals {
+            PreComposeApp {
+                appMainPage.Main(Unit)
+            }
+        }
     }
     // 创建系统托盘
     Tray(

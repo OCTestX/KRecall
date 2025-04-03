@@ -26,8 +26,12 @@ import io.github.kotlin.fibonacci.ui.utils.ToastModel
 import io.github.octestx.krecall.composeapp.generated.resources.Res
 import io.github.octestx.krecall.exceptions.ConfigurationNotSavedException
 import io.github.octestx.krecall.plugins.PluginManager
-import io.github.octestx.krecall.plugins.basic.*
+import io.github.octestx.krecall.plugins.basic.AbsCaptureScreenPlugin
+import io.github.octestx.krecall.plugins.basic.AbsOCRPlugin
+import io.github.octestx.krecall.plugins.basic.AbsStoragePlugin
+import io.github.octestx.krecall.plugins.basic.PluginBasic
 import io.klogging.noCoLogger
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import ui.core.AbsUIPage
 
@@ -47,7 +51,9 @@ class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPa
                     }
                 } else {
                     Button(onClick = {
-                        PluginManager.initAllPlugins()
+                        scope.launch {
+                            PluginManager.initAllPlugins()
+                        }
                     }) {
                         Text("InitAllPlugins")
                     }
@@ -69,16 +75,6 @@ class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPa
                     }
                     item {
                         PluginCard(state.ocrPlugin, state.availableOCRPlugins, "OCR插件") {
-                            state.action(PluginConfigAction.SelectScreenLanguageConverterPlugin(it))
-                        }
-                    }
-                    item {
-                        PluginCard(state.captureAudioPlugin, state.availableCaptureAudioPlugins, "音频捕获插件") {
-                            state.action(PluginConfigAction.SelectScreenLanguageConverterPlugin(it))
-                        }
-                    }
-                    item {
-                        PluginCard(state.sttPlugin, state.availableSTTPlugins, "语音转文字(STT)插件") {
                             state.action(PluginConfigAction.SelectScreenLanguageConverterPlugin(it))
                         }
                     }
@@ -128,9 +124,11 @@ class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPa
                         }
                         AnimatedVisibility(pluginData.getOrNull()?.initialized?.value != true) {
                             Button(onClick = {
-                                it.tryInit().also { initResult ->
-                                    err = if (initResult is PluginBasic.InitResult.Failed) initResult.exception
-                                    else null
+                                scope.launch {
+                                    it.tryInit().also { initResult ->
+                                        err = if (initResult is PluginBasic.InitResult.Failed) initResult.exception
+                                        else null
+                                    }
                                 }
                             }) {
                                 Text("INIT", modifier = Modifier.padding(4.dp))
@@ -204,10 +202,6 @@ class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPa
         val availableStoragePlugins: List<AbsStoragePlugin>,
         val ocrPlugin: Result<AbsOCRPlugin>,
         val availableOCRPlugins: List<AbsOCRPlugin>,
-        val captureAudioPlugin: Result<AbsCaptureAudioPlugin>,
-        val availableCaptureAudioPlugins: List<AbsCaptureAudioPlugin>,
-        val sttPlugin: Result<AbsSTTPlugin>,
-        val availableSTTPlugins: List<AbsSTTPlugin>,
         val action: (PluginConfigAction) -> Unit,
     ): AbsUIState<PluginConfigAction>()
 
@@ -222,10 +216,6 @@ class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPa
                 PluginManager.availableStoragePlugins.values.toList(),
                 PluginManager.ocrPlugin.collectAsState().value,
                 PluginManager.availableOCRPlugins.values.toList(),
-                PluginManager.captureAudioPlugin.collectAsState().value,
-                PluginManager.availableCaptureAudioPlugins.values.toList(),
-                PluginManager.sttPlugin.collectAsState().value,
-                PluginManager.availableSTTPlugins.values.toList()
             ) {
                 actionExecute(params, it)
             }

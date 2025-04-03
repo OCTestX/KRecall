@@ -4,7 +4,6 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import io.github.octestx.krecall.plugins.PluginManager
 import io.github.octestx.krecall.plugins.basic.AIResult
-import io.github.octestx.krecall.plugins.basic.AbsCaptureAudioPlugin
 import io.github.octestx.krecall.plugins.basic.exceptionSerializableOjson
 import io.github.octestx.krecall.repository.ConfigManager
 import io.github.octestx.krecall.repository.DataDB
@@ -57,14 +56,14 @@ object GlobalRecalling {
                         val captureScreen = PluginManager.getCaptureScreenPlugin().getOrThrow()
                         val storage = PluginManager.getStoragePlugin().getOrThrow()
                         val timestamp = TimeStamp.current
-                        if (captureScreen.supportOutputToStream()) {
+                        val windowInfo = if (captureScreen.supportOutputToStream()) {
                             val outputStream =storage.requireImageOutputStream(timestamp)
                             captureScreen.getScreen(outputStream)
                         } else {
                             val file = storage.requireImageFileBitItNotExits(timestamp)
                             captureScreen.getScreen(file)
                         }
-                        DataDB.addNewRecord(timestamp)
+                        DataDB.addNewRecord(windowInfo.screenId.toLong(), timestamp, "", windowInfo.appId, windowInfo.windowTitle)
                         processingDataList.addLast(timestamp)
                         allTimestamp.add(timestamp)
                     }
@@ -79,35 +78,6 @@ object GlobalRecalling {
                 ologger.error(e) { "Collecting Fail!" }
             }
         }
-        val audioDataReceiver = object : AbsCaptureAudioPlugin.AudioDataReceiver {
-            override fun receive(data: ByteArray) {
-                //TODO
-                ologger.info { "RECEIVE AUDIO DATA: ${data.size}" }
-            }
-        }
-        //TODO capture audio
-//        var currentCaptureAudioOutputStream: BufferedOutputStream? = null
-//        val collectingAudioJob = ioscope.launch {
-//            try {
-//                val captureAudio = PluginManager.getCaptureAudioPlugin().getOrThrow()
-//                captureAudio.provideReceiver(audioDataReceiver)
-//                while (true) {
-//                    val leastTimestamp = DataDB.getLeastTimestamp() ?: continue
-//                    if (collectingAudio.value && captureAudio.isCapturing.not()) {
-//                        ologger.info { "CollectingAudioJobLoop" }
-//                        val storage = PluginManager.getStoragePlugin().getOrThrow()
-//                        val output = storage.requireAudioOutputStream(leastTimestamp)
-//                        val outputStream = BufferedOutputStream(output)
-//                        currentCaptureAudioOutputStream = outputStream
-//                        captureAudio.start(outputStream)
-//                        // TODO change delay time
-//                        delay(150)
-//                    }
-//                }
-//            } catch (e: Exception) {
-//                ologger.error(e) { "Collecting Fail!" }
-//            }
-//        }
         val processingDataJob = ioscope.launch {
             val needProcessData = DataDB.listNotProcessedData()
             for (data in needProcessData) {
@@ -126,23 +96,18 @@ object GlobalRecalling {
                         val captureScreenPlugin = PluginManager.getOCRPlugin().getOrThrow()
                         val screen = storage.getScreenData(timestamp)
                         screen.onSuccess {
-                            val data = captureScreenPlugin.recognize(it)
-                            if (data is AIResult.Success) {
-                                DataDB.appendData(timestamp, data.result)
-                                //让音频捕获插件暂停换文件, 在collectingAudioJob中, 当它判断插件被暂停了, 会重新启动并携带新文件
-                                val captureAudioPlugin = PluginManager.getCaptureAudioPlugin().getOrNull()
-//                                if (captureAudioPlugin != null) {
-//                                    currentCaptureAudioOutputStream?.close()
-//                                    captureAudioPlugin.pause()
-//                                }
+                            try {
+                                val data = captureScreenPlugin.recognize(it)
+                                DataDB.appendData(timestamp, data.text)
                                 storage.processed(timestamp)
                                 DataDB.processed(timestamp)
                                 errorTimestamp.remove(timestamp)
                                 errorTimestampCount.value = errorTimestamp.size
-                            } else if (data is AIResult.Failed<String>) {
-                                DataDB.happenError(timestamp, data)
-                                errorTimestamp[timestamp] = data
-                                errorTimestampCount.value = errorTimestamp.size
+                            } catch (e :Exception) {
+                                DataDB.happenError(timestamp, e)
+                                ologger.warn { "TODO action #84578854932" }
+//                                errorTimestamp[timestamp] = e
+//                                errorTimestampCount.value = errorTimestamp.size
                             }
                         }
                         ologger.info { "processed: $timestamp" }

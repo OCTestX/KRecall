@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
 import io.github.kotlin.fibonacci.utils.OS
 import io.github.octestx.krecall.plugins.basic.AbsCaptureScreenPlugin
+import io.github.octestx.krecall.plugins.basic.WindowInfo
 import io.klogging.noCoLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,11 +29,11 @@ class CaptureScreenByKDESpectaclePlugin: AbsCaptureScreenPlugin(pluginId = "Capt
     private val ologger = noCoLogger<CaptureScreenByKDESpectaclePlugin>()
     override suspend fun supportOutputToStream(): Boolean = false
 
-    override suspend fun getScreen(outputStream: OutputStream) {
+    override suspend fun getScreen(outputStream: OutputStream): WindowInfo {
         throw UnsupportedOperationException()
     }
 
-    override suspend fun getScreen(outputFileBitItNotExits: File) {
+    override suspend fun getScreen(outputFileBitItNotExits: File): WindowInfo {
         withContext(Dispatchers.IO) {
             ologger.info { "getScreen: $outputFileBitItNotExits" }
             val processBuilder = ProcessBuilder("/usr/bin/spectacle", "-f", "-b", "-n", "-o", outputFileBitItNotExits.absolutePath)
@@ -45,6 +46,11 @@ class CaptureScreenByKDESpectaclePlugin: AbsCaptureScreenPlugin(pluginId = "Capt
                 throw err
             }
         }
+        return WindowInfo(
+            0,
+            "DEFAULT__Spectacle",
+            "DEFAULT__Spectacle",
+        )
     }
 
     override fun load() {
@@ -85,7 +91,7 @@ class CaptureScreenByKDESpectaclePlugin: AbsCaptureScreenPlugin(pluginId = "Capt
     }
 
 
-    override fun tryInitInner(): InitResult {
+    override suspend fun tryInitInner(): InitResult {
         ologger.info { "TryInit" }
         val e = runBlocking {
             try {
