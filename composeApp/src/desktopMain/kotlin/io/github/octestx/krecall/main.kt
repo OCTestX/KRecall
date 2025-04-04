@@ -9,10 +9,12 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import io.github.octestx.krecall.composeapp.generated.resources.Res
 import io.github.octestx.krecall.composeapp.generated.resources.icon
+import io.github.octestx.krecall.ui.utils.SystemMessager
 import kotlinx.coroutines.runBlocking
 import moe.tlaster.precompose.PreComposeApp
 import moe.tlaster.precompose.ProvidePreComposeLocals
 import org.jetbrains.compose.resources.painterResource
+import javax.swing.SwingUtilities
 
 fun main() = application {
     runBlocking {
@@ -20,7 +22,7 @@ fun main() = application {
     }
     val appMainPageModel = remember { AppMainPage.AppMainPageModel() }
     val appMainPage = remember { AppMainPage(appMainPageModel) }
-    var windowVisible by remember { mutableStateOf(true) }
+    var windowVisible by remember { mutableStateOf(false) }//Default is background running.
     Window(
         visible = windowVisible,
         onCloseRequest = {
@@ -32,6 +34,14 @@ fun main() = application {
             PreComposeApp {
                 appMainPage.Main(Unit)
             }
+        }
+    }
+    SystemMessager.showSystemNotification(
+        "KRecall",
+        "点击本通知以显示主界面"
+    ) {
+        SwingUtilities.invokeLater {
+            windowVisible = true
         }
     }
     // 创建系统托盘

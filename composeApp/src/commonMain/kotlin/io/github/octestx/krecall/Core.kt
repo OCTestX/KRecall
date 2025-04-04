@@ -15,6 +15,8 @@ import kotlinx.coroutines.runBlocking
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
 import java.io.File
+import java.net.ServerSocket
+import kotlin.system.exitProcess
 
 object Core {
     private val ologger = noCoLogger<Core>()
@@ -23,6 +25,12 @@ object Core {
     private var initialized = false
     suspend fun init() {
         if (initialized) return
+        val isSingle = checkSingleInstance()
+        if (isSingle.not()) {
+            ologger.error { "Already run one now!" }
+            exitProcess(18)
+        }
+
         val workDir = File(File(System.getProperty("user.dir")), "KRecall").apply {
             mkdirs()
         }
@@ -49,5 +57,17 @@ object Core {
 
         initialized = true
         ologger.info { "INITIALIZED" }
+    }
+
+    private var socketServer: ServerSocket? = null
+    //if current is only one. return true
+    fun checkSingleInstance(): Boolean {
+        if (socketServer != null) return true
+        try {
+            socketServer = ServerSocket(19501)//TODO change port
+            return true
+        } catch (e: Throwable) {
+            return false
+        }
     }
 }

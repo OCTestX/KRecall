@@ -10,9 +10,11 @@ import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
+import io.ktor.utils.io.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.ByteArrayInputStream
+import java.io.File
 
 @Serializable
 data class OCRMeta(
@@ -32,6 +34,7 @@ data class OCRResponse(
     val results: List<OCRResult>
 )
 
+//TODO
 class OCRAPIClient(
     private val apiAddress: String,
     private val timeoutMillis: Long = 30_000
@@ -48,6 +51,7 @@ class OCRAPIClient(
         }
     }
 
+    @OptIn(InternalAPI::class)
     suspend fun recognize(image: ByteArray): OCRResponse {
         return client.post("$apiAddress/ocr") {
             setBody(

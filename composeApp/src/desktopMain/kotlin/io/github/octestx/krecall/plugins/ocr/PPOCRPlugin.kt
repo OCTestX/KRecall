@@ -52,7 +52,7 @@ class PPOCRPlugin: AbsOCRPlugin("PPOCRPlugin") {
             val tmpFile = File(pluginDir, "tmp.png")
             tmpFile.writeBytes(screen)
             val ocrResult = ocrCore!!.detect(tmpFile.absoluteFile, doAngle = true, mostAngle = true)
-            return OCRResult(ocrResult.strRes)
+            return OCRResult(ocrResult.strRes, 1.0, ocrResult.textBlocks.map { textBlock -> textBlock.boxPoint.map { listOf(it.x, it.y) }.flatten() }, 0)
         }
     }
 
