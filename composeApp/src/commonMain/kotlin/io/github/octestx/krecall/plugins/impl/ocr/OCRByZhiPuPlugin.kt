@@ -44,7 +44,8 @@ class OCRByZhiPuPlugin: AbsOCRPlugin("OCRByZhiPuPlugin") {
         val systemMsg: String,
         val temperature: Double,
         val topP: Double,
-        val frequencyPenalty: Double
+        val frequencyPenalty: Double,
+        val backupOCRAPI: String,
     )
     private val defaultSystemMsg = """
         你是Win11的Recall功能的新后端，我会给你提供一系列电脑截图,请将截图中的内容分析出来，不要使用自然语言，请分成许多个短小的词语,并且进行合理断词,回答要全面，不能使用‘等’，例如分析文件管理器窗口时把里面包含的所有文件的文件名列出来,使用换行分割不同的词语,开头末尾不要引号,类似这样:Clash Verge

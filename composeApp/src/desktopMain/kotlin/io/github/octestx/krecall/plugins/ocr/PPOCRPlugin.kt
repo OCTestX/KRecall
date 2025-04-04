@@ -204,6 +204,7 @@ private fun main() {
         val workDir = File(File(System.getProperty("user.dir")), "KRecall").apply {
             mkdirs()
         }
+
         val config = BasicMultiplatformConfigModule()
         config.configInnerAppDir(workDir)
         startKoin() {
