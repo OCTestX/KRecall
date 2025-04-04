@@ -3,7 +3,6 @@ package io.github.octestx.krecall
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import io.github.octestx.krecall.plugins.PluginManager
-import io.github.octestx.krecall.plugins.basic.AIResult
 import io.github.octestx.krecall.plugins.basic.exceptionSerializableOjson
 import io.github.octestx.krecall.repository.ConfigManager
 import io.github.octestx.krecall.repository.DataDB
@@ -26,7 +25,7 @@ object GlobalRecalling {
     val collectingAudio = MutableStateFlow(true)
     val collectingDelay = MutableStateFlow(0L)
     val processingData = MutableStateFlow(true)
-    val errorTimestamp = mutableStateMapOf<Long, AIResult.Failed<*>>()
+    val errorTimestamp = mutableStateMapOf<Long, Exception>()
     val errorTimestampCount = MutableStateFlow(0)
 
     //Timestamp
@@ -45,7 +44,7 @@ object GlobalRecalling {
         if (initialized) return
         initialized = true
         allTimestamp.addAll(DataDB.listAllData().map { it.timestamp })
-        val pairs = DataDB.listNotProcessedData().filter { it.status == 2L }.map { it.timestamp to exceptionSerializableOjson.decodeFromString<AIResult.Failed<String>>(it.error!!) }
+        val pairs = DataDB.listNotProcessedData().filter { it.status == 2L }.map { it.timestamp to exceptionSerializableOjson.decodeFromString<Exception>(it.error!!) }
         errorTimestamp.putAll(pairs)
         errorTimestampCount.value = errorTimestamp.size
         val collectingScreenJob = ioscope.launch {
@@ -98,7 +97,7 @@ object GlobalRecalling {
                         screen.onSuccess {
                             try {
                                 val data = captureScreenPlugin.recognize(it)
-                                DataDB.appendData(timestamp, data.text)
+                                DataDB.setData(timestamp, data.text)
                                 storage.processed(timestamp)
                                 DataDB.processed(timestamp)
                                 errorTimestamp.remove(timestamp)

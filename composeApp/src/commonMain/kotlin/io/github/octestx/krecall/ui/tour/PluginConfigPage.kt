@@ -41,8 +41,8 @@ class PluginConfigPage(model: PluginConfigModel): AbsUIPage<Any?, PluginConfigPa
     override fun UI(state: PluginConfigState) {
         Column {
             Row {
-                val allInitialized = PluginManager.allPluginsInitialized.collectAsState()
-                if (allInitialized.value) {
+                val allInitialized = PluginManager.AllPluginInitialized()
+                if (allInitialized) {
                     Text("AllPluginsInitialized")
                     Button(onClick = {
                         state.action(PluginConfigAction.ConfigDone)

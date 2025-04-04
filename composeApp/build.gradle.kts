@@ -79,9 +79,6 @@ kotlin {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutines.swing)
             implementation("app.cash.sqldelight:sqlite-driver:2.0.2")
-//            implementation("ai.djl:api:0.20.0")
-//            implementation("ai.djl.paddlepaddle:paddlepaddle-model-zoo:0.20.0")
-            implementation("com.alphacephei:vosk:0.3.45")
         }
     }
 }
@@ -146,6 +143,7 @@ sqldelight {
     databases {
         create("DB") {
             packageName.set("models.sqld")
+            dialect("app.cash.sqldelight:sqlite-3-35-dialect:2.0.2") // 明确指定方言
             // 添加迁移配置
             migrationOutputDirectory.set(file("src/main/sqldelight/migrations"))
             schemaOutputDirectory.set(file("src/main/sqldelight/schemas"))

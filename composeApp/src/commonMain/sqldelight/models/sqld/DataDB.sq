@@ -12,6 +12,24 @@ CREATE TABLE IF NOT EXISTS DataItem (
     windowTitle TEXT DEFAULT NULL
 );
 
+createTable:
+CREATE TABLE IF NOT EXISTS DataItem (
+    screenId INTEGER NOT NULL DEFAULT 0,
+    timestamp INTEGER NOT NULL PRIMARY KEY,
+    data TEXT DEFAULT NULL,
+    -- 0: not processed, 1: processed, 2: error
+    status INTEGER NOT NULL DEFAULT 0,
+    error TEXT DEFAULT NULL,
+    -- json data string
+    ocr Text DEFAULT NULL,
+    mark TEXT NOT NULL DEFAULT "",
+    appId TEXT DEFAULT NULL,
+    windowTitle TEXT DEFAULT NULL
+);
+
+
+
+
 -- GetData
 
 ----------------WARNING: This action is not recommended.----------------

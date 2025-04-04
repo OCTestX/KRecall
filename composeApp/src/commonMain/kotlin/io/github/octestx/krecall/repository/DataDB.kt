@@ -19,24 +19,11 @@ object DataDB {
     fun init(dbFile: Path) {
         driver = JdbcSqliteDriver("jdbc:sqlite:${dbFile.toString().apply { ologger.info("loadSql: $this") }}")
 
-        //TODO 手动建表
-        driver.execute(
-            null, """
-                CREATE TABLE IF NOT EXISTS "DataItem" (
-                	"timestamp"	INTEGER NOT NULL,
-                	"screenId"	INTEGER NOT NULL DEFAULT 0,
-                	"ocr"	TEXT DEFAULT NULL,
-                	"status"	INTEGER NOT NULL DEFAULT 0,
-                	"error"	TEXT DEFAULT NULL,
-                	"mark"	TEXT NOT NULL,
-                	"appId"	TEXT DEFAULT NULL,
-                	"windowTitle"	TEXT DEFAULT NULL,
-                	PRIMARY KEY("timestamp")
-                );
-            """.trimIndent(), 0
-        )
-        ologger.info("Table DataItem created or verified.")
         dataDBQueries = DataDBQueries(driver)
+
+        //TODO 手动建表
+        dataDBQueries.createTable()
+        ologger.info("Table DataItem created or verified.")
     }
 
     fun listAllData(): List<DataItem> {
@@ -83,7 +70,7 @@ object DataDB {
         dataDBQueries.addNewRecord(screenId, timestamp, mark, appId, windowTitle)
     }
 
-    fun appendData(timestamp: Long, data: String) {
+    fun setData(timestamp: Long, data: String) {
         dataDBQueries.setData(data, timestamp)
     }
 

@@ -1,5 +1,7 @@
 package io.github.octestx.krecall.plugins
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import io.github.kotlin.fibonacci.utils.OS
 import io.github.octestx.krecall.plugins.basic.AbsCaptureScreenPlugin
 import io.github.octestx.krecall.plugins.basic.AbsOCRPlugin
@@ -7,12 +9,8 @@ import io.github.octestx.krecall.plugins.basic.AbsStoragePlugin
 import io.github.octestx.krecall.plugins.basic.PluginBasic
 import io.github.octestx.krecall.repository.ConfigManager
 import io.klogging.noCoLogger
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
 
 expect fun getPlatformExtPlugins(): Set<PluginBasic>
 expect fun getPlatformInnerPlugins(): Set<PluginBasic>
@@ -38,7 +36,6 @@ object PluginManager {
         ologger.info { "InitPluginManager" }
         loadPlugins()
         selectConfigFromConfigFile()
-        createAllPluginsInitializedListenerFlow()
         saveConfig()
     }
 
@@ -190,15 +187,13 @@ object PluginManager {
             if (this is PluginBasic.InitResult.Failed) ologger.error(exception) { "Try to init OCRPlugin catch: ${exception.message}" }
         }
     }
-    lateinit var allPluginsInitialized: StateFlow<Boolean> private set
-    private suspend fun createAllPluginsInitializedListenerFlow() {
-        allPluginsInitialized = combine(
-            _captureScreenPlugin.value.map { it.initialized }.getOrThrow(),
-            _storagePlugin.value.map { it.initialized }.getOrThrow(),
-            _ocrPlugin.value.map { it.initialized }.getOrThrow(),
-        ) { plugins ->
-            plugins.all { it }
-        }.stateIn(CoroutineScope(Dispatchers.IO))
-        ologger.info { "CreateAllPluginsInitializedListenerFlow" }
+
+    @Composable
+    fun AllPluginInitialized(): Boolean {
+        val captureScreenPluginInitialized = captureScreenPlugin.collectAsState().value.map { it.initialized.collectAsState().value }.getOrElse { false }
+        val storagePluginInitialized = storagePlugin.collectAsState().value.map { it.initialized.collectAsState().value }.getOrElse { false }
+        val ocrPluginInitialized = ocrPlugin.collectAsState().value.map { it.initialized.collectAsState().value }.getOrElse { false }
+
+        return captureScreenPluginInitialized && storagePluginInitialized && ocrPluginInitialized
     }
 }

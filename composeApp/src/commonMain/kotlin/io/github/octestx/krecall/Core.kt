@@ -21,7 +21,7 @@ object Core {
     private val ioscope = CoroutineScope(Dispatchers.IO)
     @Volatile
     private var initialized = false
-    fun init() {
+    suspend fun init() {
         if (initialized) return
         val workDir = File(File(System.getProperty("user.dir")), "KRecall").apply {
             mkdirs()

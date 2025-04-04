@@ -9,12 +9,15 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import io.github.octestx.krecall.composeapp.generated.resources.Res
 import io.github.octestx.krecall.composeapp.generated.resources.icon
+import kotlinx.coroutines.runBlocking
 import moe.tlaster.precompose.PreComposeApp
 import moe.tlaster.precompose.ProvidePreComposeLocals
 import org.jetbrains.compose.resources.painterResource
 
 fun main() = application {
-    Core.init()
+    runBlocking {
+        Core.init()
+    }
     val appMainPageModel = remember { AppMainPage.AppMainPageModel() }
     val appMainPage = remember { AppMainPage(appMainPageModel) }
     var windowVisible by remember { mutableStateOf(true) }

@@ -91,28 +91,24 @@ class PPOCRPlugin: AbsOCRPlugin("PPOCRPlugin") {
                 savedConfig.value = false
                 _initialized.value = false
             }, label = {
-                Text("API-Model")
+                Text("ModelsDir")
             })
 
             var saveText = "Save"
             Button(onClick = {
                 try {
-                    if (
-                        modelDirPath.isNotEmpty()
-                    ) {
-                        val newConfig = PPOCRPluginConfig(
-                            modelDirPath
-                        )
-                        configFile.writeText(ojson.encodeToString(newConfig))
-                        config = newConfig
-                        scope.launch {
-                            saveText = "Saved"
-                            delay(3000)
-                            saveText = "Save"
-                        }
-                        savedConfig.value = true
-                        ologger.info { "Saved" }
+                    val newConfig = PPOCRPluginConfig(
+                        modelDirPath
+                    )
+                    configFile.writeText(ojson.encodeToString(newConfig))
+                    config = newConfig
+                    scope.launch {
+                        saveText = "Saved"
+                        delay(3000)
+                        saveText = "Save"
                     }
+                    savedConfig.value = true
+                    ologger.info { "Saved" }
                 } catch (e: Throwable) {
                     ologger.error(e)
                 }
@@ -193,6 +189,7 @@ class PPOCRPlugin: AbsOCRPlugin("PPOCRPlugin") {
         }
 
         ocrCore = OCRCore(lib.absolutePath, modelsDir)
+
         ologger.info { "Initialized" }
         _initialized.value = true
         return InitResult.Success
