@@ -146,27 +146,27 @@ class HomeTab(model: HomePageModel): AbsUIPage<Any?, HomeTab.HomePageState, Home
             }
 
 
-//            if (_selectedTimestampIndex >= 0) {
-//                //Realtime update current data
-//                LaunchedEffect(_selectedTimestampIndex) {
-//                    while (_currentData.isEmpty()) {
-//                        PluginManager.getStoragePlugin().onSuccess { storagePlugin ->
-//                            _currentData = DataDB.getData(GlobalRecalling.allTimestamp[_selectedTimestampIndex])?.data_ ?: ""
-//                            storagePlugin.getScreenData(GlobalRecalling.allTimestamp[_selectedTimestampIndex])
-//                                .onSuccess {
-//                                    val img = it.decodeToImageBitmap()
-//                                    _currentImagePainter = BitmapPainter(img)
-//                                }
-//                        }
-//                        delay(1000)
-//                    }
-//                }
-//            } else {
-//                _selectedTimestampIndex = GlobalRecalling.allTimestamp.lastIndex
-//                if (_selectedTimestampIndex >= 0) {
-//                    TraceRealtime()
-//                }
-//            }
+            if (_selectedTimestampIndex >= 0) {
+                //Realtime update current data
+                LaunchedEffect(_selectedTimestampIndex) {
+                    while (_currentData.isEmpty()) {
+                        PluginManager.getStoragePlugin().onSuccess { storagePlugin ->
+                            _currentData = DataDB.getData(GlobalRecalling.allTimestamp[_selectedTimestampIndex])?.data_ ?: ""
+                            storagePlugin.getScreenData(GlobalRecalling.allTimestamp[_selectedTimestampIndex])
+                                .onSuccess {
+                                    val img = it.decodeToImageBitmap()
+                                    _currentImagePainter = BitmapPainter(img)
+                                }
+                        }
+                        delay(1000)
+                    }
+                }
+            } else {
+                _selectedTimestampIndex = GlobalRecalling.allTimestamp.lastIndex
+                if (_selectedTimestampIndex >= 0) {
+                    TraceRealtime()
+                }
+            }
         }
         override fun actionExecute(params: Any?, action: HomePageAction) {
             when(action) {

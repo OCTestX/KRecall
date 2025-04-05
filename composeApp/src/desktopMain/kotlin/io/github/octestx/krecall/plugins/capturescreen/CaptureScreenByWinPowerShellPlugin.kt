@@ -34,7 +34,7 @@ class CaptureScreenByWinPowerShellPlugin: AbsCaptureScreenPlugin(pluginId = "Cap
     }
 
     override suspend fun getScreen(outputFileBitItNotExits: File): WindowInfo {
-        withContext(Dispatchers.IO) {
+        return withContext(Dispatchers.IO) {
             ologger.info { "getScreen: $outputFileBitItNotExits" }
 
 
@@ -79,33 +79,43 @@ class CaptureScreenByWinPowerShellPlugin: AbsCaptureScreenPlugin(pluginId = "Cap
             }
             getCurrentWindowInfo()
         }
-        return getCurrentWindowInfo()
     }
 
     private fun getCurrentWindowInfo(): WindowInfo {
+        return WindowInfo(1, "占位Id", "占位Title")
         // 执行 PowerShell 获取活动窗口的进程 ID 和标题
-        val f = "\$"
+        val STR = "$"
         val command = """
-        Add-Type -TypeDefinition @'
-        using System;
-        using System.Runtime.InteropServices;
-        using System.Text;
-        public class WindowUtils {
-            [DllImport("user32.dll")]
-            public static extern IntPtr GetForegroundWindow();
-            [DllImport("user32.dll")]
-            public static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
-            [DllImport("user32.dll")]
-            public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
-        }
-'@
-        ${f}hwnd = [WindowUtils]::GetForegroundWindow()
-        ${f}sb = New-Object Text.StringBuilder 1024
-        [WindowUtils]::GetWindowText(${f}hwnd, ${f}sb, ${f}sb.Capacity) | Out-Null
-        ${f}title = ${f}sb.ToString()
-        ${f}pid = 0
-        [WindowUtils]::GetWindowThreadProcessId(${f}hwnd, [ref]${f}pid) | Out-Null
-        "${f}pid|${f}title"
+Add-Type @"
+using System;
+using System.Text;
+using System.Runtime.InteropServices;
+
+public class User32 {
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+
+    [DllImport("user32.dll")]
+    public static extern int GetWindowThreadProcessId(IntPtr hWnd, out int processId);
+}
+"@
+
+${STR}hwnd = [User32]::GetForegroundWindow()
+
+# 获取进程ID
+${STR}processId = 0
+[User32]::GetWindowThreadProcessId(${STR}hwnd, [ref] ${STR}processId) | Out-Null
+
+# 获取窗口标题
+${STR}sb = New-Object System.Text.StringBuilder 256
+${STR}length = [User32]::GetWindowText(${STR}hwnd, ${STR}sb, ${STR}sb.Capacity)
+${STR}title = if (${STR}length -gt 0) { ${STR}sb.ToString() } else { "Unknown" }
+
+# 输出结果
+"${STR}processId|${STR}title"
     """.trimIndent()
 
         val process = ProcessBuilder("powershell.exe", "-Command", command).start()
@@ -147,11 +157,11 @@ class CaptureScreenByWinPowerShellPlugin: AbsCaptureScreenPlugin(pluginId = "Cap
 
     private suspend fun test(): File {
         val f = File(pluginDir, "test.png")
-        getScreen(f)
+        val data = getScreen(f)
         if (!f.exists()) {
             throw FileNotFoundException("testFile not found")
         }
-        ologger.info("Test: ${f.absolutePath}")
+        ologger.info("Test: ${f.absolutePath} [$data]")
         return f
     }
 
