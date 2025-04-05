@@ -44,8 +44,8 @@ kotlin {
             implementation(compose.components.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodel)
             implementation(libs.androidx.lifecycle.runtime.compose)
-            implementation("io.github.octestx:basic-multiplatform-lib:0.0.5")
-            implementation("io.github.octestx:basic-multiplatform-ui-lib:0.0.2Test5")
+            implementation("io.github.octestx:basic-multiplatform-lib:0.0.6R1")
+            implementation("io.github.octestx:basic-multiplatform-ui-lib:0.0.6R1F1")
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
 
             // Ktor基础库

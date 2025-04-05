@@ -5,30 +5,21 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
-import io.github.kotlin.fibonacci.BasicMultiplatformConfigModule
-import io.github.kotlin.fibonacci.JVMInitCenter
-import io.github.kotlin.fibonacci.JVMUIInitCenter
 import io.github.kotlin.fibonacci.utils.OS
 import io.github.kotlin.fibonacci.utils.ojson
 import io.github.octestx.krecall.composeapp.generated.resources.Res
 import io.github.octestx.krecall.exceptions.ConfigurationNotSavedException
 import io.github.octestx.krecall.plugins.basic.AbsOCRPlugin
-import io.github.octestx.krecall.plugins.basic.IPluginContext
 import io.github.octestx.krecall.plugins.basic.OCRResult
-import io.github.octestx.krecall.plugins.impl.PluginContextImpl
 import io.github.octestx.krecall.plugins.impl.storage.OTStoragePlugin
 import io.github.octestx.krecall.plugins.ocr.ocrlibrary.OCRCore
-import io.github.octestx.krecall.repository.FileTree
 import io.klogging.noCoLogger
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import org.jetbrains.compose.resources.ExperimentalResourceApi
-import org.koin.core.context.startKoin
-import org.koin.dsl.module
 import java.io.File
 
 
@@ -199,35 +190,35 @@ class PPOCRPlugin: AbsOCRPlugin("PPOCRPlugin") {
     override val initialized: StateFlow<Boolean> = _initialized
 }
 
-private fun main() {
-    runBlocking {
-        val workDir = File(File(System.getProperty("user.dir")), "KRecall").apply {
-            mkdirs()
-        }
-
-        val config = BasicMultiplatformConfigModule()
-        config.configInnerAppDir(workDir)
-        startKoin() {
-            modules(
-                config.asModule(),
-                module {
-                    single<IPluginContext> { PluginContextImpl() }
-                }
-            )
-        }
-        JVMInitCenter.init()
-        JVMUIInitCenter.init()
-
-        FileTree.init()
-
-        val plugin = PPOCRPlugin()
-        plugin.load()
-        plugin.selected()
-        plugin.tryInit()
-        val screen = File("/home/octest/Myself/tmp/Screenshot_20250301_234058.png").readBytes()
-        val data = plugin.recognize(screen)
-        println(data)
-        delay(1500)
-        println("EXIT")
-    }
-}
+//private fun main() {
+//    runBlocking {
+//        val workDir = File(File(System.getProperty("user.dir")), "KRecall").apply {
+//            mkdirs()
+//        }
+//
+//        val config = BasicMultiplatformConfigModule()
+//        config.configInnerAppDir(workDir)
+//        startKoin() {
+//            modules(
+//                config.asModule(),
+//                module {
+//                    single<IPluginContext> { PluginContextImpl() }
+//                }
+//            )
+//        }
+//        JVMInitCenter.init()
+//        JVMUIInitCenter.init()
+//
+//        FileTree.init()
+//
+//        val plugin = PPOCRPlugin()
+//        plugin.load()
+//        plugin.selected()
+//        plugin.tryInit()
+//        val screen = File("/home/octest/Myself/tmp/Screenshot_20250301_234058.png").readBytes()
+//        val data = plugin.recognize(screen)
+//        println(data)
+//        delay(1500)
+//        println("EXIT")
+//    }
+//}

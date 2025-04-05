@@ -1,8 +1,10 @@
 package io.github.octestx.krecall
 
+import androidx.compose.ui.window.TrayState
 import io.github.kotlin.fibonacci.BasicMultiplatformConfigModule
 import io.github.kotlin.fibonacci.JVMInitCenter
 import io.github.kotlin.fibonacci.JVMUIInitCenter
+import io.github.kotlin.fibonacci.utils.checkSelfIsSingleInstance
 import io.github.octestx.krecall.plugins.PluginManager
 import io.github.octestx.krecall.plugins.basic.IPluginContext
 import io.github.octestx.krecall.plugins.impl.PluginContextImpl
@@ -15,7 +17,6 @@ import kotlinx.coroutines.runBlocking
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
 import java.io.File
-import java.net.ServerSocket
 import kotlin.system.exitProcess
 
 object Core {
@@ -23,9 +24,9 @@ object Core {
     private val ioscope = CoroutineScope(Dispatchers.IO)
     @Volatile
     private var initialized = false
-    suspend fun init() {
+    suspend fun init(trayState: TrayState) {
         if (initialized) return
-        val isSingle = checkSingleInstance()
+        val isSingle = checkSelfIsSingleInstance()
         if (isSingle.not()) {
             ologger.error { "Already run one now!" }
             exitProcess(18)
@@ -45,7 +46,7 @@ object Core {
             )
         }
         JVMInitCenter.init()
-        JVMUIInitCenter.init()
+        JVMUIInitCenter.init(trayState)
 
         FileTree.init()
         runBlocking {
@@ -57,17 +58,5 @@ object Core {
 
         initialized = true
         ologger.info { "INITIALIZED" }
-    }
-
-    private var socketServer: ServerSocket? = null
-    //if current is only one. return true
-    fun checkSingleInstance(): Boolean {
-        if (socketServer != null) return true
-        try {
-            socketServer = ServerSocket(19501)//TODO change port
-            return true
-        } catch (e: Throwable) {
-            return false
-        }
     }
 }

@@ -12,7 +12,7 @@ import androidx.compose.ui.unit.dp
 import compose.icons.TablerIcons
 import compose.icons.tablericons.ArrowLeft
 import compose.icons.tablericons.ArrowRight
-import io.github.octestx.krecall.utils.TimeUtils
+import io.github.kotlin.fibonacci.utils.TimeStamp
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 
@@ -203,7 +203,7 @@ fun TimestampRateController(
             }
         }
         Text(
-            text = "${TimeUtils.formatTimestampToChinese(timestamps[currentIndex])} SelectedTimestamp: $current $next",
+            text = "${TimeStamp.formatTimestampToChinese(timestamps[currentIndex])} SelectedTimestamp: $current $next",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

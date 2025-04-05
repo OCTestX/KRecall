@@ -1,56 +1,69 @@
 package io.github.octestx.krecall
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.window.Tray
-import androidx.compose.ui.window.Window
-import androidx.compose.ui.window.application
+import androidx.compose.runtime.*
+import androidx.compose.ui.window.*
+import io.github.kotlin.fibonacci.SystemMessage
+import io.github.kotlin.fibonacci.utils.OS
 import io.github.octestx.krecall.composeapp.generated.resources.Res
 import io.github.octestx.krecall.composeapp.generated.resources.icon
-import io.github.octestx.krecall.ui.utils.SystemMessager
-import kotlinx.coroutines.runBlocking
+import io.klogging.NoCoLogger
+import io.klogging.noCoLogger
 import moe.tlaster.precompose.PreComposeApp
 import moe.tlaster.precompose.ProvidePreComposeLocals
 import org.jetbrains.compose.resources.painterResource
-import javax.swing.SwingUtilities
 
+private lateinit var ologger: NoCoLogger
 fun main() = application {
-    runBlocking {
-        Core.init()
+    // 创建系统托盘
+    val trayState = rememberTrayState()
+    var loading by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        Core.init(trayState)
+        ologger = noCoLogger("Whole Recall")
+        loading = false
     }
-    val appMainPageModel = remember { AppMainPage.AppMainPageModel() }
-    val appMainPage = remember { AppMainPage(appMainPageModel) }
-    var windowVisible by remember { mutableStateOf(false) }//Default is background running.
-    Window(
-        visible = windowVisible,
-        onCloseRequest = {
-            windowVisible = false
-        },
-        title = "KRecall",
-    ) {
-        ProvidePreComposeLocals {
-            PreComposeApp {
-                appMainPage.Main(Unit)
+    var windowVisible by remember { mutableStateOf(
+        if (OS.getCurrentOS() == OS.OperatingSystem.WIN) false
+        else true
+    ) }//Default is background running.
+    if (loading.not()) {
+        val appMainPageModel = remember { AppMainPage.AppMainPageModel() }
+        val appMainPage = remember { AppMainPage(appMainPageModel) }
+        Window(
+            visible = windowVisible,
+            onCloseRequest = {
+                windowVisible = false
+            },
+            title = "KRecall",
+        ) {
+            ProvidePreComposeLocals {
+                PreComposeApp {
+                    appMainPage.Main(Unit)
+                }
             }
         }
     }
-    SystemMessager.showSystemNotification(
-        "KRecall",
-        "点击本通知以显示主界面"
-    ) {
-        SwingUtilities.invokeLater {
-            windowVisible = true
-        }
-    }
-    // 创建系统托盘
     Tray(
         icon = painterResource(Res.drawable.icon),
         menu = {
-            Item("恢复窗口", onClick = { windowVisible = true })
+            Item("Show", onClick = { windowVisible = true })
             Separator()
-            Item("退出", onClick = ::exitApplication)
-        }
+            Item("Exit", onClick = ::exitApplication)
+        },
+        onAction = {
+            windowVisible = windowVisible.not()
+        },
+        tooltip = "KRecall",
+        state = trayState
     )
+    LaunchedEffect(loading) {
+        if (loading.not()) {
+            SystemMessage.sendNotification(
+                Notification(
+                    "KRecall后台运行",
+                    "点击托盘显示主界面"
+                )
+            )
+        }
+    }
 }

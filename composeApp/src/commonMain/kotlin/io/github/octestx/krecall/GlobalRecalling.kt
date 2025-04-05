@@ -2,11 +2,11 @@ package io.github.octestx.krecall
 
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
+import io.github.kotlin.fibonacci.utils.TimeStamp
 import io.github.octestx.krecall.plugins.PluginManager
 import io.github.octestx.krecall.plugins.basic.exceptionSerializableOjson
 import io.github.octestx.krecall.repository.ConfigManager
 import io.github.octestx.krecall.repository.DataDB
-import io.github.octestx.krecall.repository.TimeStamp
 import io.github.octestx.krecall.utils.ObservableLinkedList
 import io.github.octestx.krecall.utils.synchronized
 import io.klogging.noCoLogger
@@ -22,7 +22,6 @@ object GlobalRecalling {
 
     val allTimestamp = mutableStateListOf<Long>()
     val collectingScreen = MutableStateFlow(true)
-    val collectingAudio = MutableStateFlow(true)
     val collectingDelay = MutableStateFlow(0L)
     val processingData = MutableStateFlow(true)
     val errorTimestamp = mutableStateMapOf<Long, Exception>()

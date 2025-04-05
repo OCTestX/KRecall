@@ -32,7 +32,6 @@ class HomeTab(model: HomePageModel): AbsUIPage<Any?, HomeTab.HomePageState, Home
         Column {
             CaptureScreenController(state)
             ProcessImageController(state)
-            CaptureAudioController(state)
             Row {
                 Text("theNowMode")
                 Switch(state.theNowMode, { state.action(HomePageAction.ChangeTheNowMode(!state.theNowMode)) })
@@ -88,21 +87,11 @@ class HomeTab(model: HomePageModel): AbsUIPage<Any?, HomeTab.HomePageState, Home
         }
     }
 
-    @Composable
-    private fun CaptureAudioController(state: HomePageState) {
-        Row() {
-            val collectingAudio by GlobalRecalling.collectingAudio.collectAsState()
-            Text("CollectingAudio")
-            Switch(collectingAudio, { state.action(HomePageAction.ChangeCollectingAudio(!collectingAudio)) })
-        }
-    }
-
     sealed class HomePageAction : AbsUIAction() {
         data class ChangeCollectingScreen(val collectingScreen: Boolean): HomePageAction()
         data class ChangeProcessingData(val processingData: Boolean): HomePageAction()
         data class ChangeTheNowMode(val theNowMode: Boolean): HomePageAction()
         data class ChangeSelectedTimestampIndex(val selectedTimestampIndex: Int): HomePageAction()
-        data class ChangeCollectingAudio(val collectingAudio: Boolean) : HomeTab.HomePageAction()
     }
     data class HomePageState(
         val theNowMode: Boolean,
@@ -182,7 +171,6 @@ class HomeTab(model: HomePageModel): AbsUIPage<Any?, HomeTab.HomePageState, Home
         override fun actionExecute(params: Any?, action: HomePageAction) {
             when(action) {
                 is HomePageAction.ChangeCollectingScreen -> GlobalRecalling.collectingScreen.value = action.collectingScreen
-                is HomePageAction.ChangeCollectingAudio -> GlobalRecalling.collectingAudio.value = action.collectingAudio
                 is HomePageAction.ChangeProcessingData -> GlobalRecalling.processingData.value = action.processingData
                 is HomePageAction.ChangeTheNowMode -> _theNowMode = action.theNowMode
                 is HomePageAction.ChangeSelectedTimestampIndex -> {
